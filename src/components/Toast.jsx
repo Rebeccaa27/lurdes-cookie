@@ -1,66 +1,43 @@
 import { createContext, useContext, useState, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { CheckCircle2, XCircle, AlertCircle, X } from 'lucide-react'
-import { cn } from '../lib/utils'
+import { CheckCircle2, XCircle, AlertTriangle, Info, X } from 'lucide-react'
+import { cn } from '../../lib/utils'
 
-const ToastContext = createContext(null)
+const Ctx = createContext(null)
 
-const ICONS = {
-  success: CheckCircle2,
-  error:   XCircle,
-  warning: AlertCircle,
+const CFG = {
+  success: { Icon: CheckCircle2, cls: 'bg-emerald-50 border-emerald-200 text-emerald-800', icon: 'text-emerald-500' },
+  error:   { Icon: XCircle,      cls: 'bg-red-50 border-red-200 text-red-800',             icon: 'text-red-500'     },
+  warning: { Icon: AlertTriangle,cls: 'bg-amber-50 border-amber-200 text-amber-800',       icon: 'text-amber-500'   },
+  info:    { Icon: Info,         cls: 'bg-navy-100 border-navy-200 text-navy',             icon: 'text-navy-300'    },
 }
-
-const STYLES = {
-  success: 'border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-200',
-  error:   'border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950 text-red-800 dark:text-red-200',
-  warning: 'border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950 text-amber-800 dark:text-amber-200',
-}
-
-const ICON_STYLES = {
-  success: 'text-emerald-500',
-  error:   'text-red-500',
-  warning: 'text-amber-500',
-}
-
-let id = 0
+let _id = 0
 
 export function ToastProvider({ children }) {
   const [toasts, setToasts] = useState([])
-
   const add = useCallback((msg, type = 'success') => {
-    const tid = ++id
-    setToasts((t) => [...t, { id: tid, msg, type }])
-    setTimeout(() => setToasts((t) => t.filter((x) => x.id !== tid)), 3500)
+    const id = ++_id
+    setToasts(t => [...t, { id, msg, type }])
+    setTimeout(() => setToasts(t => t.filter(x => x.id !== id)), 3800)
   }, [])
-
-  const remove = useCallback((tid) => setToasts((t) => t.filter((x) => x.id !== tid)), [])
+  const rm = useCallback(id => setToasts(t => t.filter(x => x.id !== id)), [])
 
   return (
-    <ToastContext.Provider value={add}>
+    <Ctx.Provider value={add}>
       {children}
-      <div className="fixed bottom-5 right-5 z-[60] flex flex-col gap-2 items-end">
+      <div className="fixed bottom-5 right-5 z-[60] flex flex-col gap-2 items-end pointer-events-none">
         <AnimatePresence>
-          {toasts.map((t) => {
-            const Icon = ICONS[t.type] ?? CheckCircle2
+          {toasts.map(t => {
+            const { Icon, cls, icon } = CFG[t.type] ?? CFG.success
             return (
-              <motion.div
-                key={t.id}
-                initial={{ opacity: 0, y: 12, scale: 0.96 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: 8, scale: 0.96 }}
-                transition={{ duration: 0.2 }}
-                className={cn(
-                  'flex items-center gap-3 pl-3.5 pr-3 py-2.5 rounded-xl border shadow-card text-sm',
-                  STYLES[t.type]
-                )}
+              <motion.div key={t.id}
+                initial={{opacity:0,y:10,scale:.97}} animate={{opacity:1,y:0,scale:1}}
+                exit={{opacity:0,y:6,scale:.97}} transition={{duration:.2}}
+                className={cn('pointer-events-auto flex items-center gap-3 pl-4 pr-3 py-3 rounded-2xl border shadow-card-lg text-sm', cls)}
               >
-                <Icon size={16} strokeWidth={2} className={ICON_STYLES[t.type]} />
+                <Icon size={15} strokeWidth={2} className={icon} />
                 <span className="max-w-[260px]">{t.msg}</span>
-                <button
-                  onClick={() => remove(t.id)}
-                  className="ml-1 opacity-50 hover:opacity-100 transition-opacity"
-                >
+                <button onClick={() => rm(t.id)} className="ml-1 opacity-50 hover:opacity-100">
                   <X size={13} strokeWidth={2} />
                 </button>
               </motion.div>
@@ -68,10 +45,8 @@ export function ToastProvider({ children }) {
           })}
         </AnimatePresence>
       </div>
-    </ToastContext.Provider>
+    </Ctx.Provider>
   )
 }
 
-export function useToast() {
-  return useContext(ToastContext)
-}
+export const useToast = () => useContext(Ctx)

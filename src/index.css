@@ -3,43 +3,68 @@
 @tailwind utilities;
 
 @layer base {
-  * { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
+  * { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; box-sizing: border-box; }
+  html { font-feature-settings: 'cv01','cv02','cv03','cv04'; }
   body { @apply bg-cream font-sans text-ink; }
-  ::-webkit-scrollbar { width:5px; height:5px; }
-  ::-webkit-scrollbar-track { background:transparent; }
+
+  ::-webkit-scrollbar { width: 4px; height: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
   ::-webkit-scrollbar-thumb { @apply bg-cream-300 rounded-full; }
+  ::-webkit-scrollbar-thumb:hover { @apply bg-cream-400; }
 }
 
 @layer components {
-  .input {
+  /* Inputs */
+  .field {
     @apply w-full px-3.5 py-2.5 text-sm rounded-xl border border-cream-300
-      bg-white text-ink placeholder-ink-200
-      focus:outline-none focus:ring-2 focus:ring-terra/20 focus:border-terra/50
-      transition-all duration-150 shadow-inner;
+      bg-white text-ink placeholder-ink-300
+      focus:outline-none focus:ring-2 focus:ring-terra/25 focus:border-terra/60
+      transition-all duration-150 shadow-inset;
   }
-  .label { @apply block text-xs font-medium text-ink-400 mb-1.5 tracking-wide; }
-  .card  { @apply bg-white rounded-2xl shadow-card border border-cream-200 p-5; }
-  .card-lg { @apply bg-white rounded-3xl shadow-card-lg border border-cream-200 p-6; }
-  .section-title { @apply font-serif text-xl text-ink font-medium; }
+  .field-label { @apply block text-xs font-medium text-ink-400 mb-1.5 tracking-wide uppercase; }
+
+  /* Cards */
+  .card      { @apply bg-white rounded-2xl shadow-card border border-cream-200 p-5; }
+  .card-lg   { @apply bg-white rounded-3xl shadow-card-lg border border-cream-200 p-6; }
+  .card-navy { @apply bg-navy rounded-2xl shadow-card-lg p-5; }
+
+  /* Section */
+  .section-title { @apply font-serif text-xl text-ink-700 font-medium; }
+  .section-sub   { @apply text-sm text-ink-400 mt-0.5; }
+
+  /* Stat pill */
+  .stat-pill { @apply inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium; }
 }
 
+/* ── Animations ─────────────────────────────────── */
 @keyframes slideUp   { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
+@keyframes slideIn   { from{opacity:0;transform:translateX(-8px)} to{opacity:1;transform:translateX(0)} }
 @keyframes fadeIn    { from{opacity:0} to{opacity:1} }
+@keyframes scaleIn   { from{opacity:0;transform:scale(.97)} to{opacity:1;transform:scale(1)} }
 @keyframes shimmer   { from{background-position:-200% 0} to{background-position:200% 0} }
+@keyframes spin      { to{transform:rotate(360deg)} }
+@keyframes pulse-dot { 0%,100%{opacity:1} 50%{opacity:.4} }
 
-.animate-slide-up { animation: slideUp 280ms ease both; }
-.animate-fade-in  { animation: fadeIn  200ms ease both; }
+.anim-up    { animation: slideUp 280ms cubic-bezier(.4,0,.2,1) both; }
+.anim-in    { animation: slideIn 250ms cubic-bezier(.4,0,.2,1) both; }
+.anim-fade  { animation: fadeIn  200ms ease both; }
+.anim-scale { animation: scaleIn 220ms cubic-bezier(.4,0,.2,1) both; }
 
+.anim-stagger > *:nth-child(1){animation-delay:0ms}
+.anim-stagger > *:nth-child(2){animation-delay:60ms}
+.anim-stagger > *:nth-child(3){animation-delay:120ms}
+.anim-stagger > *:nth-child(4){animation-delay:180ms}
+.anim-stagger > *:nth-child(5){animation-delay:240ms}
+.anim-stagger > *:nth-child(6){animation-delay:300ms}
+
+/* Skeleton */
 .skeleton {
-  background: linear-gradient(90deg, #ede9e5 25%, #e5e0da 50%, #ede9e5 75%);
+  background: linear-gradient(90deg, #ede9e5 25%, #e5dfd8 50%, #ede9e5 75%);
   background-size: 200% 100%;
-  animation: shimmer 1.4s infinite;
+  animation: shimmer 1.5s infinite;
   border-radius: 10px;
 }
 
-.stagger > *:nth-child(1){animation-delay:0ms}
-.stagger > *:nth-child(2){animation-delay:50ms}
-.stagger > *:nth-child(3){animation-delay:100ms}
-.stagger > *:nth-child(4){animation-delay:150ms}
-.stagger > *:nth-child(5){animation-delay:200ms}
-.stagger > *:nth-child(6){animation-delay:250ms}
+/* Circular progress */
+.progress-ring { transform: rotate(-90deg); }
+.progress-ring circle { transition: stroke-dashoffset 0.6s cubic-bezier(.4,0,.2,1); }
