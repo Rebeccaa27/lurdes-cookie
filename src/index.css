@@ -5,7 +5,16 @@
 @layer base {
   * { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; box-sizing: border-box; }
   html { font-feature-settings: 'cv01','cv02','cv03','cv04'; }
-  body { @apply bg-cream font-sans text-navy; }
+
+  body {
+    @apply font-sans text-navy;
+    background-image: url('/bg.jpg');
+    background-size: cover;
+    background-position: center top;
+    background-attachment: fixed;
+    background-repeat: no-repeat;
+    min-height: 100vh;
+  }
 
   ::-webkit-scrollbar { width: 4px; height: 4px; }
   ::-webkit-scrollbar-track { background: transparent; }
@@ -17,17 +26,17 @@
   /* Inputs */
   .field {
     @apply w-full px-3.5 py-2.5 text-sm rounded-xl border border-cream-300
-      bg-white text-navy placeholder-navy-300
+      bg-white/80 backdrop-blur-sm text-navy placeholder-navy-300
       focus:outline-none focus:ring-2 focus:ring-cherry/20 focus:border-cherry/50
       transition-all duration-150 shadow-inset;
   }
   .field-label { @apply block text-xs font-medium text-navy-400 mb-1.5 tracking-wide uppercase; }
 
-  /* Cards */
-  .card      { @apply bg-white rounded-2xl shadow-card border border-cream-300 p-4 md:p-5; }
-  .card-lg   { @apply bg-white rounded-3xl shadow-card-lg border border-cream-300 p-5 md:p-6; }
-  .card-choco { @apply bg-navy rounded-2xl shadow-card-lg p-4 md:p-5; }
-  .card-navy  { @apply bg-navy rounded-2xl shadow-card-lg p-4 md:p-5; }
+  /* Cards — fundo semitransparente sobre a imagem */
+  .card      { @apply bg-white/85 backdrop-blur-sm rounded-2xl shadow-card border border-white/60 p-4 md:p-5; }
+  .card-lg   { @apply bg-white/85 backdrop-blur-sm rounded-3xl shadow-card-lg border border-white/60 p-5 md:p-6; }
+  .card-choco { @apply bg-navy/90 backdrop-blur-sm rounded-2xl shadow-card-lg p-4 md:p-5; }
+  .card-navy  { @apply bg-navy/90 backdrop-blur-sm rounded-2xl shadow-card-lg p-4 md:p-5; }
 
   /* Section */
   .section-title { @apply font-serif text-lg md:text-xl text-navy font-medium; }
@@ -45,14 +54,14 @@
   }
   .btn-secondary {
     @apply inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl
-      bg-cream-200 text-navy text-sm font-medium
-      hover:bg-cream-300 active:scale-[.98]
+      bg-white/70 backdrop-blur-sm text-navy text-sm font-medium
+      hover:bg-white/90 active:scale-[.98]
       transition-all duration-150;
   }
   .btn-ghost {
     @apply inline-flex items-center justify-center gap-2 px-3 py-2 rounded-xl
       text-navy-400 text-sm font-medium
-      hover:bg-cream-200 hover:text-navy active:scale-[.98]
+      hover:bg-white/60 hover:text-navy active:scale-[.98]
       transition-all duration-150;
   }
 
@@ -87,7 +96,7 @@
 
 /* Skeleton */
 .skeleton {
-  background: linear-gradient(90deg, #E2E8F0 25%, #CBD5E1 50%, #E2E8F0 75%);
+  background: linear-gradient(90deg, rgba(226,232,240,0.8) 25%, rgba(203,213,225,0.8) 50%, rgba(226,232,240,0.8) 75%);
   background-size: 200% 100%;
   animation: shimmer 1.5s infinite;
   border-radius: 10px;
