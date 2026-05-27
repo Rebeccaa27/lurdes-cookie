@@ -5,7 +5,7 @@
 @layer base {
   * { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; box-sizing: border-box; }
   html { font-feature-settings: 'cv01','cv02','cv03','cv04'; }
-  body { @apply bg-cream font-sans text-ink; }
+  body { @apply bg-[#F3EBE3] font-sans text-ink; }
 
   ::-webkit-scrollbar { width: 4px; height: 4px; }
   ::-webkit-scrollbar-track { background: transparent; }
