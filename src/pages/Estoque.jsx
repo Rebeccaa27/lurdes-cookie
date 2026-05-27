@@ -1,13 +1,13 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
-import { Package, Calculator, Save } from 'lucide-react'
+import { Calculator, Save } from 'lucide-react'
 import { supabase } from '../lib/supabaseClient'
 import { useToast } from '../components/Toast'
 import Button from '../components/Button'
 import Badge from '../components/Badge'
 import { useEstoque } from '../lib/hooks'
-import { RECEITAS, ALL_INGREDIENTS, calcularIngredientes, PRECOS } from '../lib/receitas'
 import { cn } from '../lib/utils'
+import { RECEITAS, ALL_INGREDIENTS, calcularIngredientes, catalogoReceitas } from '../lib/receitas'
 
 function StatusBadge({ qtd }) {
   if (qtd === null || qtd === undefined)
@@ -58,10 +58,25 @@ export default function Estoque() {
   }
 
   function calcular() {
-    const prod = {}
-    Object.entries(producao).forEach(([k, v]) => { if (parseFloat(v) > 0) prod[k] = parseFloat(v) })
-    if (!Object.keys(prod).length) { toast('Informe ao menos 1 lote', 'warning'); return }
-    setResultado(calcularIngredientes(prod))
+    const result = {}
+    let temAlgo = false
+
+    Object.entries(producao).forEach(([nomeReceita, val]) => {
+      const nLotes = parseFloat(val)
+      if (nLotes > 0) {
+        temAlgo = true
+        // encontra a receita pelo nome para obter o id
+        const receita = Object.values(catalogoReceitas).find((r) => r.nome === nomeReceita)
+        if (!receita) return
+        const ingredientes = calcularIngredientes(receita.id, nLotes)
+        Object.entries(ingredientes).forEach(([ing, qtd]) => {
+          result[ing] = (result[ing] || 0) + qtd
+        })
+      }
+    })
+
+    if (!temAlgo) { toast('Informe ao menos 1 lote', 'warning'); return }
+    setResultado(result)
   }
 
   return (
