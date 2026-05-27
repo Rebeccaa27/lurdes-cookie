@@ -1,9 +1,9 @@
-import { useState, useEffect, useCallback, useContext, createContext } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { supabase } from './supabaseClient'
 
 // ── Auth ──────────────────────────────────────────────────────────────────────
 export function useAuth() {
-  const [user, setUser]     = useState(null)
+  const [user, setUser]       = useState(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -22,9 +22,9 @@ export function useAuth() {
 
 // ── Vendas ────────────────────────────────────────────────────────────────────
 export function useVendas(mes, ano) {
-  const [vendas, setVendas]     = useState([])
-  const [loading, setLoading]   = useState(true)
-  const [error, setError]       = useState(null)
+  const [vendas, setVendas]   = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError]     = useState(null)
 
   const fetch = useCallback(async () => {
     setLoading(true)
@@ -40,7 +40,23 @@ export function useVendas(mes, ano) {
     setLoading(false)
   }, [mes, ano])
 
+  // Busca inicial e ao trocar de mês
   useEffect(() => { fetch() }, [fetch])
+
+  // ── Realtime: re-busca quando qualquer linha de vendas mudar ──────────────
+  useEffect(() => {
+    const channel = supabase
+      .channel(`vendas-realtime-${mes}-${ano}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'vendas' },
+        () => { fetch() }
+      )
+      .subscribe()
+
+    return () => { supabase.removeChannel(channel) }
+  }, [fetch, mes, ano])
+
   return { vendas, loading, error, refetch: fetch }
 }
 
@@ -74,7 +90,6 @@ export function useEstoque() {
 
   useEffect(() => { fetch() }, [fetch])
 
-  // Map: { ingrediente_id: quantidade }
   const estoqueMap = estoque.reduce((acc, r) => {
     acc[r.ingrediente_id] = r.quantidade
     return acc
@@ -85,7 +100,7 @@ export function useEstoque() {
 
 // ── Custos Operacionais ───────────────────────────────────────────────────────
 export function useCustos(mes, ano) {
-  const [custos, setCustos] = useState([])
+  const [custos, setCustos]   = useState([])
   const [loading, setLoading] = useState(true)
 
   const fetch = useCallback(async () => {
