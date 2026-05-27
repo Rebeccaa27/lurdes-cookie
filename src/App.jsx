@@ -24,14 +24,14 @@ function ProtectedLayout() {
   const [mobileOpen, setMobileOpen] = useState(false)
 
   return (
-    <div className="flex min-h-screen" style={{ backgroundColor: '#F1F5F9' }}>
+    <div className="flex min-h-screen" style={{ backgroundColor: '#F3EFE9' }}>
       <Sidebar
         mobileOpen={mobileOpen}
         onMobileClose={() => setMobileOpen(false)}
       />
       <div className="flex-1 flex flex-col lg:ml-[220px] min-h-screen">
         <Header onMenuClick={() => setMobileOpen(true)} />
-        <main className="flex-1" style={{ backgroundColor: '#F1F5F9' }}>
+        <main className="flex-1" style={{ backgroundColor: '#F3EFE9' }}>
           <AnimatePresence mode="wait">
             <Routes>
               <Route path="/"           element={<Dashboard />}  />
@@ -59,8 +59,8 @@ function AppRoutes() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: '#F1F5F9' }}>
-        <div className="w-6 h-6 border-2 border-cherry border-t-transparent rounded-full animate-spin" />
+      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: '#F3EFE9' }}>
+        <div className="w-6 h-6 border-2 border-t-transparent rounded-full animate-spin" style={{ borderColor: '#C2410C', borderTopColor: 'transparent' }} />
       </div>
     )
   }

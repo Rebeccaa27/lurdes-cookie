@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
-import { TrendingUp, ShoppingBag, CircleDollarSign, Users } from 'lucide-react'
+import { TrendingUp, ShoppingBag, CircleDollarSign, Users, Cookie } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts'
 import { supabase } from '../lib/supabaseClient'
@@ -15,9 +15,9 @@ import { INGREDIENTES, catalogoReceitas } from '../lib/receitas'
 function CustomTooltip({ active, payload, label }) {
   if (!active || !payload?.length) return null
   return (
-    <div className="bg-white border border-cream-200 rounded-xl px-3 py-2 shadow-card text-xs">
-      <p className="text-ink-400 mb-1">{label}</p>
-      <p className="font-semibold text-terra">{formatBRL(payload[0].value)}</p>
+    <div className="bg-white border border-[#E8E0D5] rounded-xl px-3 py-2 shadow-card text-xs">
+      <p className="text-[#78350F] mb-1">{label}</p>
+      <p className="font-semibold" style={{ color: '#C2410C' }}>{formatBRL(payload[0].value)}</p>
     </div>
   )
 }
@@ -93,18 +93,18 @@ export default function Dashboard() {
         <CardResumo label="Clientes fiado"  value={stats?.nDevedores ?? '—'}      color="warning" icon={Users}            delay={.18} loading={loading} />
       </div>
 
-      {/* Main grid: gráfico + top vendidos */}
+      {/* Main grid */}
       <div className="grid lg:grid-cols-3 gap-5 mb-6">
 
-        {/* Gráfico de vendas — 2 colunas */}
-        <div className="lg:col-span-2 bg-white rounded-3xl shadow-card-lg border border-cream-200 p-6">
+        {/* Gráfico */}
+        <div className="lg:col-span-2 bg-white rounded-3xl shadow-card-lg border border-[#E8E0D5] p-6">
           <div className="flex items-center justify-between mb-5">
             <div>
-              <h3 className="font-semibold text-base text-ink-700">Vendas recentes</h3>
-              <p className="text-xs text-ink-400 mt-0.5">Últimos 7 meses</p>
+              <h3 className="font-semibold text-base" style={{ color: '#2A1B14' }}>Vendas recentes</h3>
+              <p className="text-xs mt-0.5" style={{ color: '#78350F' }}>Últimos 7 meses</p>
             </div>
             {chart.length > 0 && (
-              <span className="text-sm font-semibold text-terra bg-terra-100 px-3 py-1 rounded-full">
+              <span className="text-sm font-semibold px-3 py-1 rounded-full" style={{ color: '#C2410C', backgroundColor: '#FFEDD5' }}>
                 {formatBRL(chart[chart.length-1]?.total)}
               </span>
             )}
@@ -116,47 +116,51 @@ export default function Dashboard() {
                 <AreaChart data={chart} margin={{top:4,right:4,left:-20,bottom:0}}>
                   <defs>
                     <linearGradient id="gradTerra" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%"  stopColor="#BC544B" stopOpacity={0.18} />
-                      <stop offset="95%" stopColor="#BC544B" stopOpacity={0} />
+                      <stop offset="5%"  stopColor="#C2410C" stopOpacity={0.18} />
+                      <stop offset="95%" stopColor="#C2410C" stopOpacity={0} />
                     </linearGradient>
                   </defs>
-                  <XAxis dataKey="mes" tick={{fontSize:11,fill:'#A8A29E'}} axisLine={false} tickLine={false} />
-                  <YAxis tick={{fontSize:11,fill:'#A8A29E'}} axisLine={false} tickLine={false}
+                  <XAxis dataKey="mes" tick={{fontSize:11,fill:'#B8A99A'}} axisLine={false} tickLine={false} />
+                  <YAxis tick={{fontSize:11,fill:'#B8A99A'}} axisLine={false} tickLine={false}
                     tickFormatter={v => v === 0 ? '0' : `R$${(v/1000).toFixed(0)}k`} />
                   <Tooltip content={<CustomTooltip />} />
-                  <Area type="monotone" dataKey="total" stroke="#BC544B" strokeWidth={2.5}
+                  <Area type="monotone" dataKey="total" stroke="#C2410C" strokeWidth={2.5}
                     fill="url(#gradTerra)"
-                    dot={{fill:'#BC544B',strokeWidth:0,r:3}}
-                    activeDot={{r:5,fill:'#BC544B',strokeWidth:0}} />
+                    dot={{fill:'#C2410C',strokeWidth:0,r:3}}
+                    activeDot={{r:5,fill:'#C2410C',strokeWidth:0}} />
                 </AreaChart>
               </ResponsiveContainer>
             )
           }
         </div>
 
-        {/* Itens mais vendidos */}
-        <div className="bg-white rounded-3xl shadow-card-lg border border-cream-200 p-6 flex flex-col">
-          <h3 className="font-semibold text-base text-ink-700 mb-4">Itens Mais Vendidos</h3>
+        {/* Itens mais vendidos — SEM emojis */}
+        <div className="bg-white rounded-3xl shadow-card-lg border border-[#E8E0D5] p-6 flex flex-col">
+          <h3 className="font-semibold text-base mb-4" style={{ color: '#2A1B14' }}>Itens Mais Vendidos</h3>
 
           {loading ? (
             <div className="flex flex-col gap-3">
               {[1,2,3,4].map(i=><div key={i} className="skeleton h-12 rounded-xl"/>)}
             </div>
           ) : topSales.length === 0 ? (
-            <p className="text-xs text-ink-300 text-center py-8">Nenhuma venda ainda</p>
+            <p className="text-xs text-center py-8" style={{ color: '#B8A99A' }}>Nenhuma venda ainda</p>
           ) : (
             <div className="flex flex-col gap-2">
-              {topSales.map(([sabor, qty]) => {
+              {topSales.map(([sabor, qty], idx) => {
                 const r = Object.values(catalogoReceitas).find(x=>x.nome===sabor)
                 return (
-                  <div key={sabor} className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-cream-100 transition-colors">
-                    <div className="w-10 h-10 rounded-xl flex items-center justify-center text-lg flex-shrink-0"
-                      style={{background:`${r?.cor ?? '#BC544B'}22`}}>
-                      {r?.emoji ?? '🍪'}
+                  <div key={sabor} className="flex items-center gap-3 p-2.5 rounded-xl transition-colors"
+                    style={{ backgroundColor: 'transparent' }}
+                    onMouseEnter={e => e.currentTarget.style.backgroundColor = '#FAF8F5'}
+                    onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}>
+                    {/* Ícone sem emoji — círculo colorido com inicial */}
+                    <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+                      style={{ backgroundColor: `${r?.cor ?? '#C2410C'}22` }}>
+                      <Cookie size={16} style={{ color: r?.cor ?? '#C2410C' }} strokeWidth={1.75} />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-ink-700 truncate">{sabor}</p>
-                      <p className="text-xs text-ink-400">{formatBRL((r?.preco ?? 10) * qty)}</p>
+                      <p className="text-sm font-medium truncate" style={{ color: '#2A1B14' }}>{sabor}</p>
+                      <p className="text-xs" style={{ color: '#78350F' }}>{formatBRL((r?.preco ?? 10) * qty)}</p>
                     </div>
                     <Badge variant="terra">{qty} un</Badge>
                   </div>
@@ -165,11 +169,11 @@ export default function Dashboard() {
             </div>
           )}
 
-          {/* Alertas de estoque compacto */}
+          {/* Alertas de estoque */}
           <div className="mt-auto pt-4">
-            <div className="bg-terra rounded-2xl p-4">
+            <div className="rounded-2xl p-4" style={{ backgroundColor: '#C2410C' }}>
               <p className="text-sm font-semibold text-white mb-1.5">Alertas de Estoque</p>
-              <p className="text-xs text-terra-200 leading-relaxed">
+              <p className="text-xs leading-relaxed" style={{ color: '#FFEDD5' }}>
                 {INGREDIENTES
                   .filter(i => (estoqueMap[i.id] ?? 0) <= i.estoque_minimo)
                   .slice(0, 3)
@@ -182,14 +186,17 @@ export default function Dashboard() {
       </div>
 
       {/* Estoque em tempo real */}
-      <div className="bg-navy rounded-3xl shadow-card-lg p-6">
+      <div className="rounded-3xl shadow-card-lg p-6" style={{ backgroundColor: '#0F2942' }}>
         <div className="flex items-center justify-between mb-5">
           <div>
             <h3 className="font-semibold text-base text-white">Estoque em Tempo Real</h3>
-            <p className="text-xs text-navy-200 mt-0.5">Ingredientes principais</p>
+            <p className="text-xs mt-0.5" style={{ color: '#93C5FD' }}>Ingredientes principais</p>
           </div>
           <Link to="/estoque"
-            className="text-xs text-navy-200 hover:text-white transition-colors border border-navy-400 px-3 py-1 rounded-full hover:border-white">
+            className="text-xs border px-3 py-1 rounded-full transition-colors"
+            style={{ color: '#93C5FD', borderColor: '#163554' }}
+            onMouseEnter={e => { e.currentTarget.style.color = '#fff'; e.currentTarget.style.borderColor = '#fff' }}
+            onMouseLeave={e => { e.currentTarget.style.color = '#93C5FD'; e.currentTarget.style.borderColor = '#163554' }}>
             Ver completo →
           </Link>
         </div>
