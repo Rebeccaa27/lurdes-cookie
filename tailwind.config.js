@@ -10,12 +10,12 @@ export default {
       colors: {
         // Fundo principal — creme artesanal
         cream: {
-          DEFAULT: '#F9F6F0',
-          50: '#FEFCFA',
-          100: '#FAF8F3',
-          200: '#F3EDE3',
-          300: '#E8DDD0',
-          400: '#D5C8B8',
+          DEFAULT: '#EDE8E0',
+          50: '#FAF8F5',
+          100: '#F5F1EB',
+          200: '#EDE8E0',
+          300: '#DDD6CB',
+          400: '#C8BFB2',
         },
         // Sidebar — azul marinho profundo
         navy: {
