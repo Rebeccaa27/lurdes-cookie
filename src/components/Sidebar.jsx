@@ -1,4 +1,3 @@
-import { useState } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
@@ -10,8 +9,8 @@ import { supabase } from '../lib/supabaseClient'
 import { cn } from '../lib/utils'
 
 const NAV = [
-  { to: '/',           label: 'Visão Geral', Icon: LayoutDashboard },
-  { to: '/producao',   label: 'Produção',    Icon: Cpu             },
+  { to: '/',           label: 'Vis\u00e3o Geral', Icon: LayoutDashboard },
+  { to: '/producao',   label: 'Produ\u00e7\u00e3o',    Icon: Cpu             },
   { to: '/estoque',    label: 'Estoque',     Icon: Package         },
   { to: '/vendas',     label: 'Vendas',      Icon: ShoppingBag     },
   { to: '/clientes',   label: 'Clientes',    Icon: Users           },
@@ -23,10 +22,10 @@ function NavItem({ to, label, Icon, onClick }) {
   return (
     <NavLink to={to} end={to==='/'} onClick={onClick}
       className={({ isActive }) => cn(
-        'flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150 group',
+        'flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150',
         isActive
-          ? 'bg-caramel text-white shadow-sm'
-          : 'text-choco-200 hover:bg-choco-700 hover:text-white'
+          ? 'bg-cherry text-white shadow-sm'
+          : 'text-navy-200 hover:bg-navy-700 hover:text-white'
       )}
     >
       {({ isActive }) => (
@@ -47,16 +46,16 @@ function SidebarContent({ onClose }) {
     onClose?.()
   }
   return (
-    <div className="flex flex-col h-full bg-choco-800">
+    <div className="flex flex-col h-full bg-navy-800">
       {/* Logo */}
-      <div className="px-5 py-6 border-b border-choco-700">
+      <div className="px-5 py-6 border-b border-navy-700">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-2xl bg-caramel flex items-center justify-center flex-shrink-0">
+          <div className="w-9 h-9 rounded-2xl bg-cherry flex items-center justify-center flex-shrink-0">
             <Cookie size={18} strokeWidth={2} className="text-white" />
           </div>
           <div>
             <p className="text-sm font-semibold text-white leading-none">CookieHQ</p>
-            <p className="text-xs text-choco-300 mt-0.5">Gestão da Confeitaria</p>
+            <p className="text-xs text-navy-300 mt-0.5">Gest\u00e3o da Confeitaria</p>
           </div>
         </div>
       </div>
@@ -67,10 +66,10 @@ function SidebarContent({ onClose }) {
       </nav>
 
       {/* Footer */}
-      <div className="px-3 py-4 border-t border-choco-700">
+      <div className="px-3 py-4 border-t border-navy-700">
         <button onClick={logout}
           className="flex items-center gap-3 w-full px-3 py-2.5 rounded-xl text-sm font-medium
-            text-choco-200 hover:bg-red-900/30 hover:text-red-300 transition-all duration-150">
+            text-navy-200 hover:bg-red-900/30 hover:text-red-300 transition-all duration-150">
           <LogOut size={16} strokeWidth={1.75} />
           Sair
         </button>
@@ -93,14 +92,14 @@ export default function Sidebar({ mobileOpen, onMobileClose }) {
           <>
             <motion.div key="ov" initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}}
               onClick={onMobileClose}
-              className="fixed inset-0 z-40 bg-choco/50 backdrop-blur-sm lg:hidden" />
+              className="fixed inset-0 z-40 bg-navy-900/50 backdrop-blur-sm lg:hidden" />
             <motion.aside key="dr"
               initial={{x:'-100%'}} animate={{x:0}} exit={{x:'-100%'}}
               transition={{duration:.28,ease:[.4,0,.2,1]}}
               className="fixed left-0 top-0 bottom-0 z-50 w-72 lg:hidden flex flex-col">
               <div className="absolute top-4 right-4">
                 <button onClick={onMobileClose}
-                  className="p-1.5 rounded-lg bg-choco-700 text-choco-200 hover:bg-choco-600">
+                  className="p-1.5 rounded-lg bg-navy-700 text-navy-200 hover:bg-navy-600">
                   <X size={16} strokeWidth={2} />
                 </button>
               </div>
