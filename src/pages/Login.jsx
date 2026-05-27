@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { motion } from 'framer-motion'
 import { Cookie, Eye, EyeOff, ArrowRight } from 'lucide-react'
 import { supabase } from '../lib/supabaseClient'
-import Button from '../components/ui/Button'
+import Button from '../components/Button'
 
 export default function Login() {
   const [email, setEmail]     = useState('')
