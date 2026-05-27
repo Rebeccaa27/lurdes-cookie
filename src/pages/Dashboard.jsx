@@ -11,7 +11,6 @@ import AlertBanner from '../components/dashboard/AlertBanner'
 import Badge from '../components/ui/Badge'
 import { formatBRL, formatDate, MESES_CURTOS } from '../lib/utils'
 import { INGREDIENTES, catalogoReceitas } from '../lib/receitas'
-import { catalogoReceitas } from '../lib/receitas'
 
 // Tooltip customizado para o gráfico
 function CustomTooltip({ active, payload, label }) {
