@@ -1,14 +1,15 @@
 import { cn } from '../lib/utils'
 
 const V = {
-  primary:   'bg-terra text-white hover:bg-terra-600 active:bg-terra-600 shadow-sm',
-  terra:     'bg-terra text-white hover:bg-terra-600 active:bg-terra-600 shadow-sm',
-  navy:      'bg-navy text-white hover:bg-navy-500 active:bg-navy-600 shadow-sm',
-  secondary: 'bg-white border border-cream-300 text-ink-600 hover:bg-cream-100 hover:border-cream-400',
-  ghost:     'text-ink-400 hover:bg-cream-200 hover:text-ink-700',
-  danger:    'bg-red-500 text-white hover:bg-red-600',
-  success:   'bg-emerald-600 text-white hover:bg-emerald-700',
-  warm:      'bg-warm-500 text-white hover:bg-warm-700',
+  primary:   'bg-cherry text-white hover:bg-cherry-700 active:scale-[.98] shadow-sm',
+  cherry:    'bg-cherry text-white hover:bg-cherry-700 active:scale-[.98] shadow-sm',
+  navy:      'bg-navy text-white hover:opacity-90 active:scale-[.98] shadow-sm',
+  secondary: 'bg-white border border-[#CBD5E1] text-[#1E293B] hover:bg-[#F1F5F9] active:scale-[.98]',
+  ghost:     'text-[#475569] hover:bg-white hover:text-[#1E293B] active:scale-[.98]',
+  danger:    'bg-red-500 text-white hover:bg-red-600 active:scale-[.98]',
+  success:   'bg-emerald-600 text-white hover:bg-emerald-700 active:scale-[.98]',
+  terra:     'bg-cherry text-white hover:bg-cherry-700 active:scale-[.98] shadow-sm',
+  warm:      'bg-cherry text-white hover:bg-cherry-700 active:scale-[.98] shadow-sm',
 }
 const S = {
   xs: 'px-2.5 py-1.5 text-xs rounded-lg gap-1',
@@ -25,8 +26,8 @@ export default function Button({
   return (
     <button
       className={cn(
-        'inline-flex items-center justify-center font-medium transition-all duration-150',
-        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-terra/40',
+        'inline-flex items-center justify-center font-semibold transition-all duration-150',
+        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cherry/40',
         'disabled:opacity-50 disabled:cursor-not-allowed select-none',
         V[variant], S[size], fullWidth && 'w-full', className
       )}
