@@ -5,7 +5,7 @@
 @layer base {
   * { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; box-sizing: border-box; }
   html { font-feature-settings: 'cv01','cv02','cv03','cv04'; }
-  body { @apply bg-[#F3EBE3] font-sans text-ink; }
+  body { @apply bg-[#EDE8E0] font-sans text-ink; }
 
   ::-webkit-scrollbar { width: 4px; height: 4px; }
   ::-webkit-scrollbar-track { background: transparent; }
@@ -59,7 +59,7 @@
 
 /* Skeleton */
 .skeleton {
-  background: linear-gradient(90deg, #ede9e5 25%, #e5dfd8 50%, #ede9e5 75%);
+  background: linear-gradient(90deg, #e8e2db 25%, #dfd9d0 50%, #e8e2db 75%);
   background-size: 200% 100%;
   animation: shimmer 1.5s infinite;
   border-radius: 10px;
