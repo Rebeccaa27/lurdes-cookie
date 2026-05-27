@@ -1,113 +1,88 @@
 import { NavLink, useNavigate } from 'react-router-dom'
-import { motion, AnimatePresence } from 'framer-motion'
-import {
-  LayoutDashboard, ShoppingBag, Package, Cpu,
-  Users, DollarSign, Sunset,
-  LogOut, X, Cookie,
-} from 'lucide-react'
 import { supabase } from '../lib/supabaseClient'
-import { cn } from '../lib/utils'
 
 const NAV = [
-  { to: '/',           label: 'Vis\u00e3o Geral', Icon: LayoutDashboard },
-  { to: '/producao',   label: 'Produ\u00e7\u00e3o',    Icon: Cpu             },
-  { to: '/estoque',    label: 'Estoque',     Icon: Package         },
-  { to: '/vendas',     label: 'Vendas',      Icon: ShoppingBag     },
-  { to: '/clientes',   label: 'Clientes',    Icon: Users           },
-  { to: '/financeiro', label: 'Financeiro',  Icon: DollarSign      },
-  { to: '/sazonais',   label: 'Sazonais',    Icon: Sunset          },
+  { to: '/',           icon: '⊞',  label: 'Dashboard'   },
+  { to: '/vendas',     icon: '🛒',  label: 'Vendas'      },
+  { to: '/crm',        icon: '👥',  label: 'CRM'         },
+  { to: '/financeiro', icon: '💰',  label: 'Financeiro'  },
+  { to: '/estoque',    icon: '📦',  label: 'Estoque'     },
+  { to: '/producao',   icon: '🍪',  label: 'Produção'    },
+  { to: '/receitas',   icon: '📋',  label: 'Receitas'    },
+  { to: '/sazonais',   icon: '🥚',  label: 'Sazonais'    },
+  { to: '/config',     icon: '⚙️',  label: 'Config'      },
 ]
 
-function NavItem({ to, label, Icon, onClick }) {
-  return (
-    <NavLink to={to} end={to==='/'} onClick={onClick}
-      className={({ isActive }) => cn(
-        'flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150',
-        isActive
-          ? 'bg-cherry text-white shadow-sm'
-          : 'text-navy-200 hover:bg-navy-700 hover:text-white'
-      )}
-    >
-      {({ isActive }) => (
-        <>
-          <Icon size={16} strokeWidth={isActive ? 2 : 1.75} />
-          {label}
-        </>
-      )}
-    </NavLink>
-  )
-}
-
-function SidebarContent({ onClose }) {
+export default function Sidebar({ mobileOpen, onMobileClose }) {
   const navigate = useNavigate()
-  async function logout() {
+
+  async function handleLogout() {
     await supabase.auth.signOut()
     navigate('/login')
-    onClose?.()
   }
-  return (
-    <div className="flex flex-col h-full bg-navy-800">
-      {/* Logo */}
-      <div className="px-5 py-6 border-b border-navy-700">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-2xl bg-cherry flex items-center justify-center flex-shrink-0">
-            <Cookie size={18} strokeWidth={2} className="text-white" />
-          </div>
-          <div>
-            <p className="text-sm font-semibold text-white leading-none">CookieHQ</p>
-            <p className="text-xs text-navy-300 mt-0.5">Gest\u00e3o da Confeitaria</p>
-          </div>
-        </div>
-      </div>
 
-      {/* Nav */}
-      <nav className="flex-1 px-3 py-4 flex flex-col gap-0.5 overflow-y-auto">
-        {NAV.map(n => <NavItem key={n.to} {...n} onClick={onClose} />)}
-      </nav>
+  const base = [
+    'fixed inset-y-0 left-0 z-40 flex flex-col',
+    'w-[220px] transition-transform duration-300',
+  ].join(' ')
 
-      {/* Footer */}
-      <div className="px-3 py-4 border-t border-navy-700">
-        <button onClick={logout}
-          className="flex items-center gap-3 w-full px-3 py-2.5 rounded-xl text-sm font-medium
-            text-navy-200 hover:bg-red-900/30 hover:text-red-300 transition-all duration-150">
-          <LogOut size={16} strokeWidth={1.75} />
-          Sair
-        </button>
-      </div>
-    </div>
-  )
-}
+  const mobileClass = mobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
 
-export default function Sidebar({ mobileOpen, onMobileClose }) {
   return (
     <>
-      {/* Desktop */}
-      <aside className="hidden lg:flex flex-col w-[220px] fixed left-0 top-0 bottom-0 z-40">
-        <SidebarContent />
-      </aside>
+      {mobileOpen && (
+        <div
+          className="fixed inset-0 z-30 bg-black/40 lg:hidden"
+          onClick={onMobileClose}
+        />
+      )}
 
-      {/* Mobile drawer */}
-      <AnimatePresence>
-        {mobileOpen && (
-          <>
-            <motion.div key="ov" initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}}
+      <aside className={`${base} ${mobileClass}`} style={{ background: '#1C1917' }}>
+        {/* Logo */}
+        <div className="px-5 py-5 border-b border-white/10">
+          <div className="flex items-center gap-2">
+            <span className="text-xl">🍪</span>
+            <div>
+              <p className="text-white font-bold text-sm tracking-wide">BakeFlow</p>
+              <p className="text-white/40 text-xs">Gestão da Confeitaria</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Nav */}
+        <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
+          {NAV.map(({ to, icon, label }) => (
+            <NavLink
+              key={to}
+              to={to}
+              end={to === '/'}
               onClick={onMobileClose}
-              className="fixed inset-0 z-40 bg-navy-900/50 backdrop-blur-sm lg:hidden" />
-            <motion.aside key="dr"
-              initial={{x:'-100%'}} animate={{x:0}} exit={{x:'-100%'}}
-              transition={{duration:.28,ease:[.4,0,.2,1]}}
-              className="fixed left-0 top-0 bottom-0 z-50 w-72 lg:hidden flex flex-col">
-              <div className="absolute top-4 right-4">
-                <button onClick={onMobileClose}
-                  className="p-1.5 rounded-lg bg-navy-700 text-navy-200 hover:bg-navy-600">
-                  <X size={16} strokeWidth={2} />
-                </button>
-              </div>
-              <SidebarContent onClose={onMobileClose} />
-            </motion.aside>
-          </>
-        )}
-      </AnimatePresence>
+              className={({ isActive }) =>
+                [
+                  'flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all',
+                  isActive
+                    ? 'bg-[#C2410C] text-white font-semibold'
+                    : 'text-white/60 hover:text-white hover:bg-white/10',
+                ].join(' ')
+              }
+            >
+              <span className="text-base w-5 text-center">{icon}</span>
+              <span>{label}</span>
+            </NavLink>
+          ))}
+        </nav>
+
+        {/* Logout */}
+        <div className="px-3 py-4 border-t border-white/10">
+          <button
+            onClick={handleLogout}
+            className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-white/50 hover:text-white hover:bg-white/10 transition-all"
+          >
+            <span className="text-base w-5 text-center">↩</span>
+            <span>Sair</span>
+          </button>
+        </div>
+      </aside>
     </>
   )
 }
