@@ -9,10 +9,9 @@ import CardResumo from '../components/CardResumo'
 import StockMeter from '../components/StockMeter'
 import AlertBanner from '../components/AlertBanner'
 import Badge from '../components/Badge'
-import { formatBRL, formatDate, MESES_CURTOS } from '../lib/utils'
+import { formatBRL, MESES_CURTOS } from '../lib/utils'
 import { INGREDIENTES, catalogoReceitas } from '../lib/receitas'
 
-// Tooltip customizado para o gráfico
 function CustomTooltip({ active, payload, label }) {
   if (!active || !payload?.length) return null
   return (
@@ -30,11 +29,10 @@ export default function Dashboard() {
   const mes  = now.getMonth()
   const ano  = now.getFullYear()
 
-  const [stats,   setStats]   = useState(null)
-  const [recent,  setRecent]  = useState([])
-  const [chart,   setChart]   = useState([])
+  const [stats,    setStats]    = useState(null)
+  const [chart,    setChart]    = useState([])
   const [topSales, setTopSales] = useState([])
-  const [loading, setLoading] = useState(true)
+  const [loading,  setLoading]  = useState(true)
 
   const { estoqueMap } = useEstoque()
 
@@ -49,12 +47,11 @@ export default function Dashboard() {
         .order('data', { ascending: false })
 
       const all = vendas || []
-      const totalVendas  = all.reduce((s,v) => s + (v.valor||0), 0)
-      const totalPago    = all.filter(v=>v.pag==='pago').reduce((s,v)=>s+v.valor,0)
-      const totalFiado   = all.filter(v=>v.pag==='fiado').reduce((s,v)=>s+v.valor,0)
-      const nDevedores   = new Set(all.filter(v=>v.pag==='fiado').map(v=>v.cliente)).size
-      setStats({ totalVendas, totalPago, totalFiado, nDevedores, nVendas: all.length })
-      setRecent(all.slice(0, 5))
+      const totalVendas = all.reduce((s,v) => s + (v.valor||0), 0)
+      const totalPago   = all.filter(v=>v.pag==='pago').reduce((s,v)=>s+v.valor,0)
+      const totalFiado  = all.filter(v=>v.pag==='fiado').reduce((s,v)=>s+v.valor,0)
+      const nDevedores  = new Set(all.filter(v=>v.pag==='fiado').map(v=>v.cliente)).size
+      setStats({ totalVendas, totalPago, totalFiado, nDevedores })
 
       // Chart — últimos 7 meses
       const chartData = []
@@ -85,54 +82,62 @@ export default function Dashboard() {
     <motion.div initial={{opacity:0}} animate={{opacity:1}} transition={{duration:.25}}
       className="p-6 lg:p-8 max-w-6xl mx-auto">
 
+      {/* Alertas */}
       <AlertBanner estoqueMap={estoqueMap} />
 
       {/* Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6 anim-stagger">
-        <CardResumo label="Total do mês"   value={formatBRL(stats?.totalVendas)}  color="terra"   icon={TrendingUp}        delay={0}    loading={loading} />
-        <CardResumo label="Recebido"       value={formatBRL(stats?.totalPago)}    color="success" icon={ShoppingBag}       delay={.06}  loading={loading} />
-        <CardResumo label="A receber"      value={formatBRL(stats?.totalFiado)}   color="danger"  icon={CircleDollarSign}  delay={.12}  loading={loading} />
-        <CardResumo label="Clientes fiado" value={stats?.nDevedores ?? '—'}       color="warning" icon={Users}             delay={.18}  loading={loading} />
+        <CardResumo label="Total do mês"   value={formatBRL(stats?.totalVendas)} color="terra"   icon={TrendingUp}       delay={0}   loading={loading} />
+        <CardResumo label="Recebido"        value={formatBRL(stats?.totalPago)}   color="success" icon={ShoppingBag}      delay={.06} loading={loading} />
+        <CardResumo label="A receber"       value={formatBRL(stats?.totalFiado)}  color="danger"  icon={CircleDollarSign} delay={.12} loading={loading} />
+        <CardResumo label="Clientes fiado"  value={stats?.nDevedores ?? '—'}      color="warning" icon={Users}            delay={.18} loading={loading} />
       </div>
 
-      {/* Main grid */}
+      {/* Main grid: gráfico + top vendidos */}
       <div className="grid lg:grid-cols-3 gap-5 mb-6">
-        {/* Sales chart — spans 2 cols */}
+
+        {/* Gráfico de vendas — 2 colunas */}
         <div className="lg:col-span-2 bg-white rounded-3xl shadow-card-lg border border-cream-200 p-6">
           <div className="flex items-center justify-between mb-5">
             <div>
-              <h3 className="font-serif text-base font-medium text-ink-700">Vendas recentes</h3>
+              <h3 className="font-semibold text-base text-ink-700">Vendas recentes</h3>
               <p className="text-xs text-ink-400 mt-0.5">Últimos 7 meses</p>
             </div>
             {chart.length > 0 && (
-              <span className="text-sm font-semibold text-terra">
+              <span className="text-sm font-semibold text-terra bg-terra-100 px-3 py-1 rounded-full">
                 {formatBRL(chart[chart.length-1]?.total)}
               </span>
             )}
           </div>
-          {loading ? <div className="skeleton h-44 rounded-2xl" /> : (
-            <ResponsiveContainer width="100%" height={180}>
-              <AreaChart data={chart} margin={{top:4,right:4,left:-20,bottom:0}}>
-                <defs>
-                  <linearGradient id="g" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%"  stopColor="#BC544B" stopOpacity={0.15} />
-                    <stop offset="95%" stopColor="#BC544B" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <XAxis dataKey="mes" tick={{fontSize:11,fill:'#A8A29E'}} axisLine={false} tickLine={false} />
-                <YAxis tick={{fontSize:11,fill:'#A8A29E'}} axisLine={false} tickLine={false} tickFormatter={v=>`R$${v/1000}k`} />
-                <Tooltip content={<CustomTooltip />} />
-                <Area type="monotone" dataKey="total" stroke="#BC544B" strokeWidth={2.5}
-                  fill="url(#g)" dot={{fill:'#BC544B',strokeWidth:0,r:3}}
-                  activeDot={{r:5,fill:'#BC544B',strokeWidth:0}} />
-              </AreaChart>
-            </ResponsiveContainer>
-          )}
+          {loading
+            ? <div className="skeleton h-44 rounded-2xl" />
+            : (
+              <ResponsiveContainer width="100%" height={180}>
+                <AreaChart data={chart} margin={{top:4,right:4,left:-20,bottom:0}}>
+                  <defs>
+                    <linearGradient id="gradTerra" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%"  stopColor="#BC544B" stopOpacity={0.18} />
+                      <stop offset="95%" stopColor="#BC544B" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <XAxis dataKey="mes" tick={{fontSize:11,fill:'#A8A29E'}} axisLine={false} tickLine={false} />
+                  <YAxis tick={{fontSize:11,fill:'#A8A29E'}} axisLine={false} tickLine={false}
+                    tickFormatter={v => v === 0 ? '0' : `R$${(v/1000).toFixed(0)}k`} />
+                  <Tooltip content={<CustomTooltip />} />
+                  <Area type="monotone" dataKey="total" stroke="#BC544B" strokeWidth={2.5}
+                    fill="url(#gradTerra)"
+                    dot={{fill:'#BC544B',strokeWidth:0,r:3}}
+                    activeDot={{r:5,fill:'#BC544B',strokeWidth:0}} />
+                </AreaChart>
+              </ResponsiveContainer>
+            )
+          }
         </div>
 
         {/* Itens mais vendidos */}
-        <div className="bg-white rounded-3xl shadow-card-lg border border-cream-200 p-6">
-          <h3 className="font-serif text-base font-medium text-ink-700 mb-4">Itens Mais Vendidos</h3>
+        <div className="bg-white rounded-3xl shadow-card-lg border border-cream-200 p-6 flex flex-col">
+          <h3 className="font-semibold text-base text-ink-700 mb-4">Itens Mais Vendidos</h3>
+
           {loading ? (
             <div className="flex flex-col gap-3">
               {[1,2,3,4].map(i=><div key={i} className="skeleton h-12 rounded-xl"/>)}
@@ -146,12 +151,12 @@ export default function Dashboard() {
                 return (
                   <div key={sabor} className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-cream-100 transition-colors">
                     <div className="w-10 h-10 rounded-xl flex items-center justify-center text-lg flex-shrink-0"
-                      style={{background:`${r?.cor}20`}}>
+                      style={{background:`${r?.cor ?? '#BC544B'}22`}}>
                       {r?.emoji ?? '🍪'}
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-ink-700 truncate">{sabor}</p>
-                      <p className="text-xs text-ink-400">{formatBRL((r?.preco??10)*qty)}</p>
+                      <p className="text-xs text-ink-400">{formatBRL((r?.preco ?? 10) * qty)}</p>
                     </div>
                     <Badge variant="terra">{qty} un</Badge>
                   </div>
@@ -160,26 +165,33 @@ export default function Dashboard() {
             </div>
           )}
 
-          {/* Alertas de estoque */}
-          <div className="mt-5 bg-terra rounded-2xl p-4">
-            <p className="text-sm font-semibold text-white mb-2">Alertas de Estoque</p>
-            <p className="text-xs text-terra-200 leading-relaxed">
-              {INGREDIENTES
-                .filter(i => (estoqueMap[i.id] ?? 0) <= i.estoque_minimo)
-                .slice(0, 3)
-                .map(i => i.label)
-                .join(', ') || 'Tudo OK por agora.'
-              }
-            </p>
+          {/* Alertas de estoque compacto */}
+          <div className="mt-auto pt-4">
+            <div className="bg-terra rounded-2xl p-4">
+              <p className="text-sm font-semibold text-white mb-1.5">Alertas de Estoque</p>
+              <p className="text-xs text-terra-200 leading-relaxed">
+                {INGREDIENTES
+                  .filter(i => (estoqueMap[i.id] ?? 0) <= i.estoque_minimo)
+                  .slice(0, 3)
+                  .map(i => i.label)
+                  .join(', ') || 'Tudo OK por agora.'}
+              </p>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Estoque em tempo real — top ingredients */}
-      <div className="bg-white rounded-3xl shadow-card-lg border border-cream-200 p-6">
+      {/* Estoque em tempo real */}
+      <div className="bg-navy rounded-3xl shadow-card-lg p-6">
         <div className="flex items-center justify-between mb-5">
-          <h3 className="font-serif text-base font-medium text-ink-700">Estoque em Tempo Real</h3>
-          <Link to="/estoque" className="text-xs text-terra hover:underline">Ver completo →</Link>
+          <div>
+            <h3 className="font-semibold text-base text-white">Estoque em Tempo Real</h3>
+            <p className="text-xs text-navy-200 mt-0.5">Ingredientes principais</p>
+          </div>
+          <Link to="/estoque"
+            className="text-xs text-navy-200 hover:text-white transition-colors border border-navy-400 px-3 py-1 rounded-full hover:border-white">
+            Ver completo →
+          </Link>
         </div>
         <div className="grid grid-cols-3 sm:grid-cols-5 gap-3">
           {TOP_INGREDIENTS.map(id => {
@@ -192,6 +204,7 @@ export default function Dashboard() {
           })}
         </div>
       </div>
+
     </motion.div>
   )
 }
