@@ -26,54 +26,57 @@ export function useVendas(mes, ano) {
   const [loading, setLoading] = useState(true)
   const [error, setError]     = useState(null)
 
-  const fetch = useCallback(async () => {
+  const fetchVendas = useCallback(async () => {
     setLoading(true)
     const start = `${ano}-${String(mes + 1).padStart(2, '0')}-01`
     const end   = new Date(ano, mes + 1, 1).toISOString().slice(0, 10)
+    // Sem JOIN — tabela vendas não tem FK para clientes
     const { data, error } = await supabase
       .from('vendas')
-      .select('*, clientes(nome)')
-      .gte('data', start).lt('data', end)
+      .select('id, cliente, sabor, qtd, valor, pag, data, created_at')
+      .gte('data', start)
+      .lt('data', end)
       .order('data', { ascending: false })
     if (error) setError(error.message)
     else setVendas(data || [])
     setLoading(false)
   }, [mes, ano])
 
-  // Busca inicial e ao trocar de mês
-  useEffect(() => { fetch() }, [fetch])
+  useEffect(() => { fetchVendas() }, [fetchVendas])
 
-  // ── Realtime: re-busca quando qualquer linha de vendas mudar ──────────────
+  // Realtime: re-busca quando qualquer linha de vendas mudar
   useEffect(() => {
     const channel = supabase
-      .channel(`vendas-realtime-${mes}-${ano}`)
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'vendas' },
-        () => { fetch() }
-      )
+      .channel(`vendas-rt-${mes}-${ano}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'vendas' }, () => {
+        fetchVendas()
+      })
       .subscribe()
-
     return () => { supabase.removeChannel(channel) }
-  }, [fetch, mes, ano])
+  }, [fetchVendas, mes, ano])
 
-  return { vendas, loading, error, refetch: fetch }
+  return { vendas, loading, error, refetch: fetchVendas }
 }
 
-// ── Clientes ──────────────────────────────────────────────────────────────────
+// ── Clientes (lista de nomes únicos das vendas) ────────────────────────────
 export function useClientes() {
   const [clientes, setClientes] = useState([])
   const [loading, setLoading]   = useState(true)
 
-  const fetch = useCallback(async () => {
+  const fetchClientes = useCallback(async () => {
     setLoading(true)
-    const { data } = await supabase.from('clientes').select('*').order('nome')
-    setClientes(data || [])
+    // Busca nomes únicos direto da tabela vendas (não há tabela clientes separada)
+    const { data } = await supabase
+      .from('vendas')
+      .select('cliente')
+      .order('cliente')
+    const unicos = [...new Set((data || []).map(v => v.cliente).filter(Boolean))]
+    setClientes(unicos.map(nome => ({ nome })))
     setLoading(false)
   }, [])
 
-  useEffect(() => { fetch() }, [fetch])
-  return { clientes, loading, refetch: fetch }
+  useEffect(() => { fetchClientes() }, [fetchClientes])
+  return { clientes, loading, refetch: fetchClientes }
 }
 
 // ── Estoque ───────────────────────────────────────────────────────────────────
@@ -81,21 +84,28 @@ export function useEstoque() {
   const [estoque, setEstoque] = useState([])
   const [loading, setLoading] = useState(true)
 
-  const fetch = useCallback(async () => {
+  const fetchEstoque = useCallback(async () => {
     setLoading(true)
-    const { data } = await supabase.from('estoque').select('*').order('ingrediente_id')
+    // Coluna é 'ingrediente' (texto), não 'ingrediente_id'
+    const { data } = await supabase
+      .from('estoque')
+      .select('id, ingrediente, quantidade, updated_at')
+      .order('ingrediente')
     setEstoque(data || [])
     setLoading(false)
   }, [])
 
-  useEffect(() => { fetch() }, [fetch])
+  useEffect(() => { fetchEstoque() }, [fetchEstoque])
 
-  const estoqueMap = estoque.reduce((acc, r) => {
-    acc[r.ingrediente_id] = r.quantidade
+  // Map por ingrediente_id (compat com componentes que usam IDs do receitas.js)
+  // e também por nome do ingrediente
+  const estoqueMap = (estoque || []).reduce((acc, r) => {
+    // chave pelo nome exato do banco
+    acc[r.ingrediente] = r.quantidade
     return acc
   }, {})
 
-  return { estoque, estoqueMap, loading, refetch: fetch }
+  return { estoque, estoqueMap, loading, refetch: fetchEstoque }
 }
 
 // ── Custos Operacionais ───────────────────────────────────────────────────────
@@ -103,7 +113,7 @@ export function useCustos(mes, ano) {
   const [custos, setCustos]   = useState([])
   const [loading, setLoading] = useState(true)
 
-  const fetch = useCallback(async () => {
+  const fetchCustos = useCallback(async () => {
     setLoading(true)
     const { data } = await supabase
       .from('custos_operacionais')
@@ -114,8 +124,8 @@ export function useCustos(mes, ano) {
     setLoading(false)
   }, [mes, ano])
 
-  useEffect(() => { fetch() }, [fetch])
-  return { custos, loading, refetch: fetch }
+  useEffect(() => { fetchCustos() }, [fetchCustos])
+  return { custos, loading, refetch: fetchCustos }
 }
 
 // ── Mês atual state ───────────────────────────────────────────────────────────
