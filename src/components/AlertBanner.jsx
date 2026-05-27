@@ -1,11 +1,9 @@
 import { AlertTriangle, TrendingDown, Zap } from 'lucide-react'
-import { INGREDIENTES, catalogoReceitas, calcularCapacidade } from '../../lib/receitas'
-import { labelIngrediente } from '../../lib/receitas'
+import { INGREDIENTES, catalogoReceitas, calcularCapacidade, labelIngrediente } from '../lib/receitas'
 
 export default function AlertBanner({ estoqueMap = {} }) {
   const alerts = []
 
-  // Ingredientes zerados ou críticos
   INGREDIENTES.forEach(ing => {
     const qty = estoqueMap[ing.id] ?? 0
     if (qty <= 0) {
@@ -15,7 +13,6 @@ export default function AlertBanner({ estoqueMap = {} }) {
     }
   })
 
-  // Capacidade máxima de produção
   const receitas = Object.values(catalogoReceitas)
   receitas.forEach(r => {
     const { maxLotes, limitante } = calcularCapacidade(r.id, estoqueMap)

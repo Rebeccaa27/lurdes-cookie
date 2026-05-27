@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useLocation } from 'react-router-dom'
 import { Menu, Search } from 'lucide-react'
-import Button from '../ui/Button'
+import Button from './Button'
 
 const TITLES = {
   '/':           { title: 'Visão Geral',  sub: 'Resumo do negócio'               },

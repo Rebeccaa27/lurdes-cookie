@@ -1,4 +1,4 @@
-import { pct, stockStatus } from '../../lib/utils'
+import { pct, stockStatus } from '../lib/utils'
 
 function CircleProgress({ value, color, size = 64 }) {
   const r = (size - 8) / 2

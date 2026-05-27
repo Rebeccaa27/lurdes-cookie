@@ -1,7 +1,7 @@
 import { createContext, useContext, useState, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { CheckCircle2, XCircle, AlertTriangle, Info, X } from 'lucide-react'
-import { cn } from '../../lib/utils'
+import { cn } from '../lib/utils'
 
 const Ctx = createContext(null)
 

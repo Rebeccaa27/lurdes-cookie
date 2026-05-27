@@ -1,4 +1,4 @@
-import { cn } from '../../lib/utils'
+import { cn } from '../lib/utils'
 
 const V = {
   default: 'bg-ink-100 text-ink-600',

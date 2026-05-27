@@ -1,7 +1,8 @@
-import { cn } from '../../lib/utils'
+import { cn } from '../lib/utils'
 
 const V = {
   primary:   'bg-terra text-white hover:bg-terra-600 active:bg-terra-600 shadow-sm',
+  terra:     'bg-terra text-white hover:bg-terra-600 active:bg-terra-600 shadow-sm',
   navy:      'bg-navy text-white hover:bg-navy-500 active:bg-navy-600 shadow-sm',
   secondary: 'bg-white border border-cream-300 text-ink-600 hover:bg-cream-100 hover:border-cream-400',
   ghost:     'text-ink-400 hover:bg-cream-200 hover:text-ink-700',
@@ -12,7 +13,7 @@ const V = {
 const S = {
   xs: 'px-2.5 py-1.5 text-xs rounded-lg gap-1',
   sm: 'px-3.5 py-2 text-sm rounded-xl gap-1.5',
-  md: 'px-4.5 py-2.5 text-sm rounded-xl gap-2',
+  md: 'px-4 py-2.5 text-sm rounded-xl gap-2',
   lg: 'px-6 py-3 text-base rounded-xl gap-2',
 }
 

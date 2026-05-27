@@ -6,8 +6,8 @@ import {
   Users, DollarSign, Sunset, BarChart2, Settings,
   LogOut, X, Menu, Cookie,
 } from 'lucide-react'
-import { supabase } from '../../lib/supabaseClient'
-import { cn } from '../../lib/utils'
+import { supabase } from '../lib/supabaseClient'
+import { cn } from '../lib/utils'
 
 const NAV = [
   { to: '/',           label: 'Visão Geral', Icon: LayoutDashboard },
