@@ -34,3 +34,5 @@ export const stockStatus = (qty, min) => {
   if (qty <= min * 2) return { label: 'Baixo',   color: 'text-amber-600',  bg: 'bg-amber-50',  ring: '#D97706' }
   return                     { label: 'OK',      color: 'text-emerald-600',bg: 'bg-emerald-50',ring: '#10B981' }
 }
+export const MESES_CURTOS = ['Jan','Fev','Mar','Abr','Mai','Jun',
+                             'Jul','Ago','Set','Out','Nov','Dez']

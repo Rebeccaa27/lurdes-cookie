@@ -485,3 +485,24 @@ export function labelIngrediente(id) {
 }
 
 export const RECEITAS_LIST = Object.values(catalogoReceitas)
+
+// Aliases de compatibilidade para páginas antigas
+export const RECEITAS = Object.fromEntries(
+  Object.values(catalogoReceitas).map((r) => [
+    r.nome,
+    { descricao: r.descricao, cor: r.cor, massa: r.massa, recheio: r.recheio }
+  ])
+)
+
+export const PRECOS = Object.fromEntries(
+  Object.values(catalogoReceitas).map((r) => [r.nome, r.preco])
+)
+
+export const LOTES = [1, 2, 3, 4]
+
+export const ALL_INGREDIENTS = [...new Set(
+  Object.values(catalogoReceitas).flatMap((r) => [
+    ...Object.keys(r.massa),
+    ...Object.keys(r.recheio ?? {})
+  ])
+)].sort()

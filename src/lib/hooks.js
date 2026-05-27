@@ -121,3 +121,20 @@ export function useMesAtual() {
 
   return { mes, ano, prev, next, reset }
 }
+
+export function useDarkMode() {
+  const [dark, setDark] = useState(() => {
+    try {
+      const stored = localStorage.getItem('lc_dark')
+      if (stored !== null) return stored === 'true'
+    } catch {}
+    return window.matchMedia('(prefers-color-scheme: dark)').matches
+  })
+
+  useEffect(() => {
+    document.documentElement.classList.toggle('dark', dark)
+    try { localStorage.setItem('lc_dark', dark) } catch {}
+  }, [dark])
+
+  return [dark, setDark]
+}
