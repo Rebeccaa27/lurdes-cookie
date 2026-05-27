@@ -3,7 +3,7 @@ import { NavLink, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   LayoutDashboard, ShoppingBag, Package, Cpu,
-  Users, DollarSign, Sunset, BarChart2, Settings,
+  Users, DollarSign, Sunset,
   LogOut, X, Menu, Cookie,
 } from 'lucide-react'
 import { supabase } from '../lib/supabaseClient'
@@ -17,8 +17,6 @@ const NAV = [
   { to: '/clientes',   label: 'Clientes',    Icon: Users           },
   { to: '/financeiro', label: 'Financeiro',  Icon: DollarSign      },
   { to: '/sazonais',   label: 'Sazonais',    Icon: Sunset          },
-  { to: '/relatorios', label: 'Relatórios',  Icon: BarChart2       },
-  { to: '/config',     label: 'Configurações', Icon: Settings      },
 ]
 
 function NavItem({ to, label, Icon, onClick }) {
