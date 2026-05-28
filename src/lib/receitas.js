@@ -1,6 +1,6 @@
 // ─── RECEITAS — valores conferidos nas fichas físicas ─────────────────────────────
 // 1 entrada na Calculadora = 1 massa (lote inteiro)
-// rendimento = cookies por lote
+// rendimento = 5 cookies por massa
 
 export const catalogoReceitas = {
 
@@ -9,7 +9,7 @@ export const catalogoReceitas = {
     nome: 'Tradicional',
     cor: '#BC544B',
     preco: 10,
-    rendimento: 12,
+    rendimento: 5,
     descricao: 'Brown Butter clássico com chocolate meio amargo.',
     massa: {
       manteiga:    115,
@@ -30,7 +30,7 @@ export const catalogoReceitas = {
     nome: 'Nutella',
     cor: '#7B4F2E',
     preco: 12,
-    rendimento: 12,
+    rendimento: 5,
     descricao: 'Massa com baunilha, recheio generoso de Nutella.',
     massa: {
       manteiga:     50,
@@ -54,7 +54,7 @@ export const catalogoReceitas = {
     nome: 'Casadinho',
     cor: '#A0622E',
     preco: 12,
-    rendimento: 12,
+    rendimento: 5,
     descricao: 'Massa com baunilha, recheio de Ninho com Nutella.',
     massa: {
       manteiga:      50,
@@ -84,7 +84,7 @@ export const catalogoReceitas = {
     nome: 'Red Velvet',
     cor: '#BC3B3B',
     preco: 12,
-    rendimento: 12,
+    rendimento: 5,
     descricao: 'Massa vermelha com recheio de cream cheese.',
     massa: {
       manteiga:      50,
@@ -115,7 +115,7 @@ export const catalogoReceitas = {
     nome: 'Red Nut',
     cor: '#C44B3A',
     preco: 12,
-    rendimento: 12,
+    rendimento: 5,
     descricao: 'Massa vermelha com recheio de Nutella.',
     massa: {
       manteiga:     50,
@@ -141,7 +141,7 @@ export const catalogoReceitas = {
     nome: 'Ninho c/ Nutella',
     cor: '#C89060',
     preco: 12,
-    rendimento: 12,
+    rendimento: 5,
     descricao: 'Massa de leite Ninho com recheio de Nutella.',
     massa: {
       manteiga:      50,
@@ -162,7 +162,7 @@ export const catalogoReceitas = {
     nome: 'Beijinho',
     cor: '#8C7B6E',
     preco: 12,
-    rendimento: 12,
+    rendimento: 5,
     descricao: 'Massa de Ninho com brigadeiro de coco.',
     massa: {
       manteiga:      50,
@@ -188,7 +188,7 @@ export const catalogoReceitas = {
     nome: 'Brigadeiro',
     cor: '#5C3A1E',
     preco: 10,
-    rendimento: 12,
+    rendimento: 5,
     descricao: 'Massa de cacau com brigadeiro de chocolate.',
     massa: {
       manteiga:     50,
@@ -215,7 +215,7 @@ export const catalogoReceitas = {
     nome: 'Nesquik',
     cor: '#7B3F1E',
     preco: 10,
-    rendimento: 12,
+    rendimento: 5,
     descricao: 'Massa de cacau com brigadeiro de Nesquik.',
     massa: {
       manteiga:     50,
@@ -242,7 +242,7 @@ export const catalogoReceitas = {
     nome: 'Cappuccino',
     cor: '#6B4226',
     preco: 12,
-    rendimento: 12,
+    rendimento: 5,
     descricao: 'Massa aromática com brigadeiro de café.',
     massa: {
       manteiga:    50,
@@ -272,7 +272,7 @@ export const catalogoReceitas = {
     nome: 'Oreo',
     cor: '#2C2C2C',
     preco: 10,
-    rendimento: 12,
+    rendimento: 5,
     descricao: 'Cacau black com chocolate branco e Oreo.',
     massa: {
       manteiga:    50,
