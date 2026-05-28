@@ -14,9 +14,10 @@ export default function Estoque() {
   const [loading, setLoading]   = useState(true)
   const [salvando, setSalvando] = useState(false)
 
-  const [modalCookie, setModalCookie] = useState(false)
-  const [modalIng, setModalIng]       = useState(false)
-  const [editando, setEditando]       = useState(null)
+  const [modalCookie, setModalCookie]     = useState(false)
+  const [modalIng, setModalIng]           = useState(false)
+  const [editando, setEditando]           = useState(null)        // cookie editando
+  const [editandoIng, setEditandoIng]     = useState(null)        // ingrediente editando
 
   const [formCookie, setFormCookie] = useState({ sabor: '', quantidade: '', minimo: 3 })
   const [formIng, setFormIng]       = useState({ ingrediente: '', quantidade: '' })
@@ -49,6 +50,7 @@ export default function Estoque() {
     return () => supabase.removeChannel(ch)
   }, [buscarCookies, buscarIngredientes])
 
+  // ── Salvar Cookie ──────────────────────────────────────────
   async function salvarCookie(e) {
     e.preventDefault()
     if (!formCookie.sabor) return
@@ -62,8 +64,7 @@ export default function Estoque() {
     if (editando?.id) {
       ;({ error } = await supabase.from('estoque_cookies').update(payload).eq('id', editando.id))
     } else {
-      ;({ error } = await supabase.from('estoque_cookies')
-        .upsert(payload, { onConflict: 'sabor' }))
+      ;({ error } = await supabase.from('estoque_cookies').upsert(payload, { onConflict: 'sabor' }))
     }
     setSalvando(false)
     if (error) {
@@ -77,6 +78,7 @@ export default function Estoque() {
     }
   }
 
+  // ── Salvar Ingrediente ─────────────────────────────────────
   async function salvarIngrediente(e) {
     e.preventDefault()
     setSalvando(true)
@@ -90,11 +92,28 @@ export default function Estoque() {
     } else {
       toast('Ingrediente atualizado!', 'success')
       setModalIng(false)
+      setEditandoIng(null)
       setFormIng({ ingrediente: '', quantidade: '' })
       buscarIngredientes()
     }
   }
 
+  // ── Abrir modal ingrediente ────────────────────────────────
+  // editando = abre com nome travado + quantidade atual
+  // novo     = abre seletor limpo
+  function abrirEditIng(ing) {
+    setEditandoIng(ing)
+    setFormIng({ ingrediente: ing.ingrediente, quantidade: ing.quantidade })
+    setModalIng(true)
+  }
+
+  function abrirNovoIng() {
+    setEditandoIng(null)
+    setFormIng({ ingrediente: '', quantidade: '' })
+    setModalIng(true)
+  }
+
+  // ── Cookie helpers ─────────────────────────────────────────
   function abrirEditCookie(c) {
     setEditando(c)
     setFormCookie({ sabor: c.sabor, quantidade: c.quantidade, minimo: c.minimo || 3 })
@@ -119,6 +138,7 @@ export default function Estoque() {
   return (
     <div className="max-w-4xl mx-auto">
 
+      {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
           <p className="section-title mb-1">Inventário</p>
@@ -132,8 +152,7 @@ export default function Estoque() {
               setFormCookie({ sabor: '', quantidade: '', minimo: 3 })
               setModalCookie(true)
             } else {
-              setFormIng({ ingrediente: '', quantidade: '' })
-              setModalIng(true)
+              abrirNovoIng()
             }
           }}
         >
@@ -141,6 +160,7 @@ export default function Estoque() {
         </button>
       </div>
 
+      {/* Alertas */}
       {aba === 'cookies' && alertasCookies.length > 0 && (
         <div className="rounded-xl p-4 mb-4" style={{ background: '#FEF3C7', border: '1px solid #FDE68A' }}>
           <p className="font-semibold text-sm mb-1" style={{ color: '#92400E' }}>Repor Estoque</p>
@@ -158,11 +178,10 @@ export default function Estoque() {
         </div>
       )}
 
+      {/* Abas */}
       <div className="flex gap-1 mb-4 p-1 rounded-xl w-fit" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
         {[['cookies', 'Cookies Prontos'], ['ingredientes', 'Ingredientes']].map(([id, label]) => (
-          <button
-            key={id}
-            onClick={() => setAba(id)}
+          <button key={id} onClick={() => setAba(id)}
             className="px-4 py-1.5 rounded-lg text-sm font-medium transition-all"
             style={aba === id ? { background: 'var(--brand)', color: '#fff' } : { color: 'var(--text-md)' }}
           >{label}</button>
@@ -173,6 +192,8 @@ export default function Estoque() {
         <div className="flex justify-center py-16"><div className="spinner" /></div>
       ) : (
         <AnimatePresence mode="wait">
+
+          {/* ABA COOKIES */}
           {aba === 'cookies' && (
             <motion.div key="cookies" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
               {cookies.length === 0 ? (
@@ -205,6 +226,7 @@ export default function Estoque() {
             </motion.div>
           )}
 
+          {/* ABA INGREDIENTES */}
           {aba === 'ingredientes' && (
             <motion.div key="ing" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
               <div className="grid gap-2">
@@ -216,15 +238,19 @@ export default function Estoque() {
                       className="flex items-center justify-between p-3 rounded-xl"
                       style={{ background: 'var(--surface)', border: `1px solid ${baixo ? '#FECACA' : 'var(--border)'}` }}
                     >
-                      <span className="text-sm font-medium" style={{ color: 'var(--text-hi)' }}>{i.ingrediente}</span>
+                      <span className="text-sm font-medium" style={{ color: 'var(--text-hi)' }}>
+                        {i.ingrediente}
+                      </span>
                       <div className="flex items-center gap-2">
                         {baixo && <span className="badge badge-red">Crítico</span>}
                         <span className="font-bold text-sm" style={{ color: baixo ? 'var(--danger)' : 'var(--text-hi)' }}>
                           {i.quantidade}{ref?.unit || 'g'}
                         </span>
+                        {/* Editar: abre modal com nome já preenchido */}
                         <button
-                          onClick={() => { setFormIng({ ingrediente: i.ingrediente, quantidade: i.quantidade }); setModalIng(true) }}
-                          className="btn btn-ghost btn-sm" style={{ color: 'var(--text-lo)' }}
+                          onClick={() => abrirEditIng(i)}
+                          className="btn btn-ghost btn-sm"
+                          style={{ color: 'var(--text-lo)' }}
                         >Editar</button>
                       </div>
                     </div>
@@ -236,6 +262,7 @@ export default function Estoque() {
               </div>
             </motion.div>
           )}
+
         </AnimatePresence>
       )}
 
@@ -269,7 +296,7 @@ export default function Estoque() {
                 <div>
                   <label className="label">Quantidade (unidades)</label>
                   <input type="number" min="0" className={fieldCls} value={formCookie.quantidade}
-                    onChange={e => setFormCookie(p => ({ ...p, quantidade: e.target.value }))} required />
+                    onChange={e => setFormCookie(p => ({ ...p, quantidade: e.target.value }))} required autoFocus={!!editando} />
                 </div>
                 <div>
                   <label className="label">Alerta de mínimo (unidades)</label>
@@ -301,23 +328,47 @@ export default function Estoque() {
               className="w-full max-w-sm rounded-2xl p-6" style={{ background: 'var(--surface)' }}
               onClick={e => e.stopPropagation()} onSubmit={salvarIngrediente}
             >
-              <h2 className="font-display text-xl mb-5" style={{ color: 'var(--text-hi)' }}>Atualizar Ingrediente</h2>
+              <h2 className="font-display text-xl mb-5" style={{ color: 'var(--text-hi)' }}>
+                {editandoIng ? `Atualizar: ${editandoIng.ingrediente}` : 'Novo Ingrediente'}
+              </h2>
+
               <div className="space-y-4">
-                <div>
-                  <label className="label">Ingrediente</label>
-                  <select className={fieldCls} value={formIng.ingrediente}
-                    onChange={e => setFormIng(p => ({ ...p, ingrediente: e.target.value }))} required
-                  >
-                    <option value="">Selecionar ingrediente...</option>
-                    {INGREDIENTES.map(i => <option key={i.id} value={i.label}>{i.label}</option>)}
-                  </select>
-                </div>
+                {/* Se editando: mostra nome como texto fixo. Se novo: mostra select */}
+                {editandoIng ? (
+                  <div>
+                    <label className="label">Ingrediente</label>
+                    <div
+                      className="field mt-1 cursor-default"
+                      style={{ background: 'var(--bg)', color: 'var(--text-md)' }}
+                    >
+                      {editandoIng.ingrediente}
+                    </div>
+                  </div>
+                ) : (
+                  <div>
+                    <label className="label">Ingrediente</label>
+                    <select className={fieldCls} value={formIng.ingrediente}
+                      onChange={e => setFormIng(p => ({ ...p, ingrediente: e.target.value }))} required
+                    >
+                      <option value="">Selecionar ingrediente...</option>
+                      {INGREDIENTES.map(i => <option key={i.id} value={i.label}>{i.label}</option>)}
+                    </select>
+                  </div>
+                )}
+
                 <div>
                   <label className="label">Quantidade (g / ml)</label>
-                  <input type="number" min="0" className={fieldCls} value={formIng.quantidade}
-                    onChange={e => setFormIng(p => ({ ...p, quantidade: e.target.value }))} required />
+                  <input
+                    type="number" min="0"
+                    className={fieldCls}
+                    value={formIng.quantidade}
+                    onChange={e => setFormIng(p => ({ ...p, quantidade: e.target.value }))}
+                    required
+                    autoFocus
+                  />
                 </div>
               </div>
+
               <div className="flex gap-2 mt-6">
                 <button type="button" onClick={() => setModalIng(false)} className="btn btn-secondary flex-1">Cancelar</button>
                 <button type="submit" disabled={salvando} className="btn btn-primary flex-1">
