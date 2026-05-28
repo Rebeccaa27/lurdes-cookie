@@ -8,7 +8,6 @@ const MESES = [
   'Julho','Agosto','Setembro','Outubro','Novembro','Dezembro',
 ]
 
-// lookup por nome do sabor (como vem da tabela vendas)
 function receitaPorNome(nome) {
   return RECEITAS_LIST.find(
     r => r.nome.toLowerCase() === nome?.toLowerCase()
@@ -24,10 +23,10 @@ export default function Financeiro() {
   const [historico, setHistorico]     = useState([])
   const [mostrarHist, setMostrarHist] = useState(false)
   const [abaSabor, setAbaSabor]       = useState(false)
-  const [editandoPreco, setEditandoPreco]     = useState(null)
-  const [simulandoPreco, setSimulandoPreco]   = useState(null)
-  const [novoPreco, setNovoPreco]             = useState('')
-  const [precoSimulado, setPrecoSimulado]     = useState('')
+  const [editandoPreco, setEditandoPreco]   = useState(null)
+  const [simulandoPreco, setSimulandoPreco] = useState(null)
+  const [novoPreco, setNovoPreco]           = useState('')
+  const [precoSimulado, setPrecoSimulado]   = useState('')
   const [precos, setPrecos]   = useState({})
   const [acumulado, setAcumulado] = useState(0)
 
@@ -85,7 +84,6 @@ export default function Financeiro() {
   const recebido    = vendas.filter(v => v.pag === 'pago').reduce((s, v) => s + Number(v.valor) * v.qtd, 0)
   const aReceber    = faturamento - recebido
 
-  // Agrupa por sabor usando o nome exato que vem do banco
   const saboresMap = {}
   vendas.forEach(v => {
     const key = v.sabor
@@ -94,12 +92,68 @@ export default function Financeiro() {
     saboresMap[key].receita += Number(v.valor) * v.qtd
   })
 
-  // Todos os sabores do catálogo (para mostrar mesmo sem venda no mês)
   const todosSabores = RECEITAS_LIST.map(r => ({
     sabor:   r.nome,
     qtd:     saboresMap[r.nome]?.qtd     ?? 0,
     receita: saboresMap[r.nome]?.receita ?? 0,
   })).sort((a, b) => b.receita - a.receita || a.sabor.localeCompare(b.sabor, 'pt-BR'))
+
+  // ─ Saúde financeira geral (baseada nos preços cadastrados) ────────────
+  const analiseGeral = (() => {
+    const comCusto = todosSabores.filter(s => {
+      const custo = precos[s.sabor]?.custo ?? 0
+      return custo > 0
+    })
+    if (comCusto.length === 0) return null   // sem custo cadastrado ainda
+
+    const margens = comCusto.map(s => {
+      const preco = precos[s.sabor]?.preco ?? receitaPorNome(s.sabor)?.preco ?? 0
+      const custo = precos[s.sabor]?.custo ?? 0
+      return preco > 0 ? ((preco - custo) / preco) * 100 : 0
+    })
+    const mediaM   = margens.reduce((a, b) => a + b, 0) / margens.length
+    const abaixo30 = comCusto.filter((s, i) => margens[i] < 30)
+    const prejuizo = comCusto.filter((s, i) => margens[i] <= 0)
+
+    if (prejuizo.length > 0) {
+      return {
+        tipo: 'danger',
+        emoji: '⚠️',
+        titulo: 'Atenção: você está vendendo com prejuízo!',
+        msg: `${prejuizo.map(s => s.sabor).join(', ')} estão com custo acima do preço de venda. Ajuste o preço ou reduza o custo.`,
+      }
+    }
+    if (mediaM >= 30) {
+      return {
+        tipo: 'success',
+        emoji: '💰',
+        titulo: `Lucrando bem — margem média ${mediaM.toFixed(0)}%`,
+        msg: 'Todos os sabores estão com margem saudável. Continue assim!',
+      }
+    }
+    if (mediaM >= 10) {
+      return {
+        tipo: 'warning',
+        emoji: '📉',
+        titulo: `Margem baixa — média ${mediaM.toFixed(0)}%`,
+        msg: abaixo30.length > 0
+          ? `${abaixo30.map(s => s.sabor).join(', ')} estão abaixo de 30% de margem. Considere ajustar os preços.`
+          : 'Margem abaixo do ideal. O recomendado é pelo menos 30% por sabor.',
+      }
+    }
+    return {
+      tipo: 'danger',
+      emoji: '🚨',
+      titulo: `Margem crítica — média ${mediaM.toFixed(0)}%`,
+      msg: 'A margem média está abaixo de 10%. Revise os custos e preços urgente.',
+    }
+  })()
+
+  const bannerStyle = {
+    success: { bg: '#F0FDF4', border: '#86EFAC', text: '#166534' },
+    warning: { bg: '#FFFBEB', border: '#FDE68A', text: '#92400E' },
+    danger:  { bg: '#FEF2F2', border: '#FECACA', text: '#991B1B' },
+  }
 
   async function salvarPreco(nomeSabor) {
     const p = parseFloat(novoPreco)
@@ -122,9 +176,9 @@ export default function Financeiro() {
     setMes(m); setAno(a)
   }
 
-  const fatAnterior = historico.length ? historico[historico.length - 1].faturamento : 0
-  const variacao    = fatAnterior > 0 ? ((faturamento - fatAnterior) / fatAnterior * 100).toFixed(1) : null
-  const maxHist     = Math.max(faturamento, ...historico.map(x => x.faturamento), 1)
+  const fatAnterior    = historico.length ? historico[historico.length - 1].faturamento : 0
+  const variacao       = fatAnterior > 0 ? ((faturamento - fatAnterior) / fatAnterior * 100).toFixed(1) : null
+  const maxHist        = Math.max(faturamento, ...historico.map(x => x.faturamento), 1)
   const totalAcumulado = acumulado + faturamento
 
   return (
@@ -136,10 +190,7 @@ export default function Financeiro() {
           <p className="section-title mb-1">Caixa</p>
           <h1 className="font-display text-2xl" style={{ color: 'var(--text-hi)' }}>Financeiro</h1>
         </div>
-        <button
-          onClick={() => setMostrarHist(v => !v)}
-          className="btn btn-secondary btn-sm"
-        >
+        <button onClick={() => setMostrarHist(v => !v)} className="btn btn-secondary btn-sm">
           {mostrarHist ? 'Ocultar histórico' : 'Comparar meses'}
         </button>
       </div>
@@ -178,9 +229,7 @@ export default function Financeiro() {
       <AnimatePresence>
         {mostrarHist && (
           <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
+            initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}
             className="mb-6 overflow-hidden"
           >
             <div className="card">
@@ -238,11 +287,36 @@ export default function Financeiro() {
         <AnimatePresence>
           {abaSabor && (
             <motion.div
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: 'auto', opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
+              initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }}
               className="overflow-hidden"
             >
+              {/* ─── Banner de saúde financeira ─────────────────────── */}
+              {analiseGeral ? (
+                <div
+                  className="mx-5 mt-4 mb-2 rounded-xl px-4 py-3"
+                  style={{
+                    background: bannerStyle[analiseGeral.tipo].bg,
+                    border: `1px solid ${bannerStyle[analiseGeral.tipo].border}`,
+                  }}
+                >
+                  <p className="font-semibold text-sm" style={{ color: bannerStyle[analiseGeral.tipo].text }}>
+                    {analiseGeral.emoji} {analiseGeral.titulo}
+                  </p>
+                  <p className="text-xs mt-1" style={{ color: bannerStyle[analiseGeral.tipo].text, opacity: .85 }}>
+                    {analiseGeral.msg}
+                  </p>
+                </div>
+              ) : (
+                <div
+                  className="mx-5 mt-4 mb-2 rounded-xl px-4 py-3"
+                  style={{ background: '#F8FAFC', border: '1px solid var(--border)' }}
+                >
+                  <p className="text-sm" style={{ color: 'var(--text-lo)' }}>
+                    💡 Cadastre o <strong>custo</strong> de cada sabor clicando em <strong>Editar</strong> para ver a análise de lucro.
+                  </p>
+                </div>
+              )}
+
               <div className="tbl-wrap" style={{ borderTop: '1px solid var(--border)' }}>
                 <table className="tbl">
                   <thead>
@@ -271,8 +345,7 @@ export default function Financeiro() {
                             {isEdit ? (
                               <div className="flex items-center gap-1">
                                 <input
-                                  type="number" autoFocus
-                                  value={novoPreco}
+                                  type="number" autoFocus value={novoPreco}
                                   onChange={e => setNovoPreco(e.target.value)}
                                   className="field" style={{ width: 80, padding: '.25rem .5rem', fontSize: '.8125rem' }}
                                   placeholder={preco}
@@ -283,8 +356,7 @@ export default function Financeiro() {
                             ) : isSim ? (
                               <div className="flex items-center gap-1">
                                 <input
-                                  type="number" autoFocus
-                                  value={precoSimulado}
+                                  type="number" autoFocus value={precoSimulado}
                                   onChange={e => setPrecoSimulado(e.target.value)}
                                   className="field" style={{ width: 80, padding: '.25rem .5rem', fontSize: '.8125rem', background: '#FEF3C7' }}
                                   placeholder={preco}
@@ -316,11 +388,11 @@ export default function Financeiro() {
                               <button
                                 onClick={() => { setSimulandoPreco(s.sabor); setPrecoSimulado(String(preco)); setEditandoPreco(null) }}
                                 className="btn btn-ghost btn-sm" style={{ color: 'var(--warn)' }}
-                              >Simular</button>
+                              >🔮 Simular</button>
                               <button
                                 onClick={() => { setEditandoPreco(s.sabor); setNovoPreco(String(preco)); setSimulandoPreco(null) }}
                                 className="btn btn-ghost btn-sm" style={{ color: 'var(--brand)' }}
-                              >Editar</button>
+                              >✏️ Editar</button>
                             </div>
                           </td>
                         </tr>
