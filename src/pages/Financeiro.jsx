@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import { motion, AnimatePresence } from 'framer-motion'
-import { catalogoReceitas, RECEITAS_LIST } from '../lib/receitas'
+import { RECEITAS_LIST } from '../lib/receitas'
+import { useToast } from '../components/Toast'
 
 const MESES = [
   'Janeiro','Fevereiro','Março','Abril','Maio','Junho',
@@ -9,35 +10,39 @@ const MESES = [
 ]
 
 function receitaPorNome(nome) {
-  return RECEITAS_LIST.find(
-    r => r.nome.toLowerCase() === nome?.toLowerCase()
-  ) || null
+  return RECEITAS_LIST.find(r => r.nome.toLowerCase() === nome?.toLowerCase()) || null
 }
 
+function fmt(v) { return `R$ ${Number(v).toFixed(2).replace('.',',')}` }
+
 export default function Financeiro() {
-  const hoje = new Date()
+  const toast = useToast()
+  const hoje  = new Date()
   const [mes, setMes] = useState(hoje.getMonth())
   const [ano, setAno] = useState(hoje.getFullYear())
-  const [vendas, setVendas]   = useState([])
-  const [loading, setLoading] = useState(true)
+  const [vendas,   setVendas]   = useState([])
+  const [loading,  setLoading]  = useState(true)
   const [historico, setHistorico]     = useState([])
   const [mostrarHist, setMostrarHist] = useState(false)
-  const [abaSabor, setAbaSabor]       = useState(false)
-  const [editandoPreco, setEditandoPreco]   = useState(null)
-  const [simulandoPreco, setSimulandoPreco] = useState(null)
-  const [novoPreco, setNovoPreco]           = useState('')
-  const [precoSimulado, setPrecoSimulado]   = useState('')
-  const [precos, setPrecos]   = useState({})
+  const [abaSabor,    setAbaSabor]    = useState(false)
+  const [precos, setPrecos] = useState({})
   const [acumulado, setAcumulado] = useState(0)
+
+  // modal editar
+  const [modalEditar, setModalEditar] = useState(null)  // { sabor, preco, custo }
+  const [editPreco,   setEditPreco]   = useState('')
+  const [editCusto,   setEditCusto]   = useState('')
+  const [salvando,    setSalvando]    = useState(false)
+
+  // simular (inline na tabela)
+  const [simSabor,  setSimSabor]  = useState(null)
+  const [simPreco,  setSimPreco]  = useState('')
 
   const buscarVendas = useCallback(async () => {
     setLoading(true)
     const start = `${ano}-${String(mes + 1).padStart(2, '0')}-01`
     const end   = new Date(ano, mes + 1, 1).toISOString().slice(0, 10)
-    const { data } = await supabase
-      .from('vendas')
-      .select('id,sabor,qtd,valor,pag,data')
-      .gte('data', start).lt('data', end)
+    const { data } = await supabase.from('vendas').select('id,sabor,qtd,valor,pag,data').gte('data', start).lt('data', end)
     setVendas(data || [])
     setLoading(false)
   }, [mes, ano])
@@ -49,8 +54,7 @@ export default function Financeiro() {
       if (m < 0) { m += 12; a-- }
       const start = `${a}-${String(m + 1).padStart(2, '0')}-01`
       const end   = new Date(a, m + 1, 1).toISOString().slice(0, 10)
-      const { data } = await supabase
-        .from('vendas').select('qtd,valor,pag').gte('data', start).lt('data', end)
+      const { data } = await supabase.from('vendas').select('qtd,valor,pag').gte('data', start).lt('data', end)
       const fat  = (data || []).reduce((s, v) => s + v.valor * v.qtd, 0)
       const pago = (data || []).filter(v => v.pag === 'pago').reduce((s, v) => s + v.valor * v.qtd, 0)
       meses.push({ label: `${MESES[m].slice(0, 3)} ${a}`, faturamento: fat, recebido: pago })
@@ -64,7 +68,7 @@ export default function Financeiro() {
     const { data } = await supabase.from('precos_sabores').select('sabor,preco,custo')
     if (data) {
       const map = {}
-      data.forEach(r => { map[r.sabor] = { preco: r.preco, custo: r.custo } })
+      data.forEach(r => { map[r.sabor] = { preco: r.preco ?? 0, custo: r.custo ?? 0 } })
       setPrecos(map)
     }
   }, [])
@@ -86,10 +90,9 @@ export default function Financeiro() {
 
   const saboresMap = {}
   vendas.forEach(v => {
-    const key = v.sabor
-    if (!saboresMap[key]) saboresMap[key] = { sabor: key, qtd: 0, receita: 0 }
-    saboresMap[key].qtd     += v.qtd
-    saboresMap[key].receita += Number(v.valor) * v.qtd
+    if (!saboresMap[v.sabor]) saboresMap[v.sabor] = { qtd: 0, receita: 0 }
+    saboresMap[v.sabor].qtd     += v.qtd
+    saboresMap[v.sabor].receita += Number(v.valor) * v.qtd
   })
 
   const todosSabores = RECEITAS_LIST.map(r => ({
@@ -98,75 +101,54 @@ export default function Financeiro() {
     receita: saboresMap[r.nome]?.receita ?? 0,
   })).sort((a, b) => b.receita - a.receita || a.sabor.localeCompare(b.sabor, 'pt-BR'))
 
-  // ─ Saúde financeira geral (baseada nos preços cadastrados) ────────────
+  // ─ Saúde financeira ─────────────────────────────────────────────
   const analiseGeral = (() => {
-    const comCusto = todosSabores.filter(s => {
-      const custo = precos[s.sabor]?.custo ?? 0
-      return custo > 0
-    })
-    if (comCusto.length === 0) return null   // sem custo cadastrado ainda
-
+    const comCusto = todosSabores.filter(s => (precos[s.sabor]?.custo ?? 0) > 0)
+    if (comCusto.length === 0) return null
     const margens = comCusto.map(s => {
-      const preco = precos[s.sabor]?.preco ?? receitaPorNome(s.sabor)?.preco ?? 0
-      const custo = precos[s.sabor]?.custo ?? 0
-      return preco > 0 ? ((preco - custo) / preco) * 100 : 0
+      const p = precos[s.sabor]?.preco ?? receitaPorNome(s.sabor)?.preco ?? 0
+      const c = precos[s.sabor]?.custo ?? 0
+      return p > 0 ? ((p - c) / p) * 100 : 0
     })
     const mediaM   = margens.reduce((a, b) => a + b, 0) / margens.length
-    const abaixo30 = comCusto.filter((s, i) => margens[i] < 30)
-    const prejuizo = comCusto.filter((s, i) => margens[i] <= 0)
-
-    if (prejuizo.length > 0) {
-      return {
-        tipo: 'danger',
-        emoji: '⚠️',
-        titulo: 'Atenção: você está vendendo com prejuízo!',
-        msg: `${prejuizo.map(s => s.sabor).join(', ')} estão com custo acima do preço de venda. Ajuste o preço ou reduza o custo.`,
-      }
-    }
-    if (mediaM >= 30) {
-      return {
-        tipo: 'success',
-        emoji: '💰',
-        titulo: `Lucrando bem — margem média ${mediaM.toFixed(0)}%`,
-        msg: 'Todos os sabores estão com margem saudável. Continue assim!',
-      }
-    }
-    if (mediaM >= 10) {
-      return {
-        tipo: 'warning',
-        emoji: '📉',
-        titulo: `Margem baixa — média ${mediaM.toFixed(0)}%`,
-        msg: abaixo30.length > 0
-          ? `${abaixo30.map(s => s.sabor).join(', ')} estão abaixo de 30% de margem. Considere ajustar os preços.`
-          : 'Margem abaixo do ideal. O recomendado é pelo menos 30% por sabor.',
-      }
-    }
-    return {
-      tipo: 'danger',
-      emoji: '🚨',
-      titulo: `Margem crítica — média ${mediaM.toFixed(0)}%`,
-      msg: 'A margem média está abaixo de 10%. Revise os custos e preços urgente.',
-    }
+    const abaixo30 = comCusto.filter((_, i) => margens[i] < 30)
+    const prejuizo = comCusto.filter((_, i) => margens[i] <= 0)
+    if (prejuizo.length > 0) return { tipo: 'danger',  emoji: '⚠️', titulo: 'Atenção: você está vendendo com prejuízo!', msg: `${prejuizo.map(s => s.sabor).join(', ')} estão com custo acima do preço.` }
+    if (mediaM >= 30)        return { tipo: 'success', emoji: '💰', titulo: `Lucrando bem — margem média ${mediaM.toFixed(0)}%`, msg: 'Todos os sabores estão com margem saudável. Continue assim!' }
+    if (mediaM >= 10)        return { tipo: 'warning', emoji: '📉', titulo: `Margem baixa — média ${mediaM.toFixed(0)}%`, msg: abaixo30.length ? `${abaixo30.map(s => s.sabor).join(', ')} abaixo de 30%.` : 'Recomendado mínimo 30% por sabor.' }
+    return                          { tipo: 'danger',  emoji: '🚨', titulo: `Margem crítica — média ${mediaM.toFixed(0)}%`, msg: 'Revise os custos e preços urgente.' }
   })()
 
-  const bannerStyle = {
+  const BS = {
     success: { bg: '#F0FDF4', border: '#86EFAC', text: '#166534' },
     warning: { bg: '#FFFBEB', border: '#FDE68A', text: '#92400E' },
     danger:  { bg: '#FEF2F2', border: '#FECACA', text: '#991B1B' },
   }
 
-  async function salvarPreco(nomeSabor) {
-    const p = parseFloat(novoPreco)
-    if (!p || isNaN(p)) return
-    const custo = precos[nomeSabor]?.custo || 0
+  // ─ Salvar preço + custo ─────────────────────────────────────────
+  async function salvarEdicao() {
+    const p = parseFloat(editPreco)
+    const c = parseFloat(editCusto)
+    if (isNaN(p) || p <= 0) { toast('Informe um preço válido', 'error'); return }
+    if (isNaN(c) || c < 0)  { toast('Informe um custo válido',  'error'); return }
+    setSalvando(true)
     const { error } = await supabase.from('precos_sabores').upsert(
-      { sabor: nomeSabor, preco: p, custo, atualizado_em: new Date().toISOString() },
+      { sabor: modalEditar.sabor, preco: p, custo: c, atualizado_em: new Date().toISOString() },
       { onConflict: 'sabor' }
     )
-    if (error) { console.error(error); return }
-    setPrecos(prev => ({ ...prev, [nomeSabor]: { preco: p, custo: prev[nomeSabor]?.custo || 0 } }))
-    setEditandoPreco(null)
-    setNovoPreco('')
+    setSalvando(false)
+    if (error) { toast('Erro ao salvar: ' + error.message, 'error'); return }
+    setPrecos(prev => ({ ...prev, [modalEditar.sabor]: { preco: p, custo: c } }))
+    toast('Preços salvos!', 'success')
+    setModalEditar(null)
+  }
+
+  function abrirEditar(s) {
+    const preco = precos[s.sabor]?.preco ?? receitaPorNome(s.sabor)?.preco ?? 0
+    const custo = precos[s.sabor]?.custo ?? 0
+    setModalEditar({ sabor: s.sabor, preco, custo })
+    setEditPreco(String(preco))
+    setEditCusto(String(custo))
   }
 
   function navMes(dir) {
@@ -210,17 +192,15 @@ export default function Financeiro() {
       {/* KPIs */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
         {[
-          { label: 'Faturamento', value: `R$ ${faturamento.toFixed(2).replace('.',',')}`, color: 'var(--text-hi)'  },
-          { label: 'No Caixa',   value: `R$ ${recebido.toFixed(2).replace('.',',')}`,    color: 'var(--success)' },
-          { label: 'A Receber',  value: `R$ ${aReceber.toFixed(2).replace('.',',')}`,    color: 'var(--brand)'   },
-          { label: 'Cookies',    value: vendas.reduce((s, v) => s + v.qtd, 0),          color: 'var(--text-hi)'  },
+          { label: 'Faturamento', value: fmt(faturamento), color: 'var(--text-hi)'  },
+          { label: 'No Caixa',   value: fmt(recebido),    color: 'var(--success)'  },
+          { label: 'A Receber',  value: fmt(aReceber),    color: 'var(--brand)'    },
+          { label: 'Cookies',    value: vendas.reduce((s, v) => s + v.qtd, 0), color: 'var(--text-hi)' },
         ].map(k => (
           <div key={k.label} className="card">
             <p className="section-title mb-1">{k.label}</p>
-            {loading
-              ? <div className="skeleton h-7 w-20 mt-1 rounded" />
-              : <p className="text-xl font-bold" style={{ color: k.color }}>{k.value}</p>
-            }
+            {loading ? <div className="skeleton h-7 w-20 mt-1 rounded" />
+              : <p className="text-xl font-bold" style={{ color: k.color }}>{k.value}</p>}
           </div>
         ))}
       </div>
@@ -228,42 +208,31 @@ export default function Financeiro() {
       {/* Histórico */}
       <AnimatePresence>
         {mostrarHist && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}
-            className="mb-6 overflow-hidden"
-          >
+          <motion.div initial={{ opacity:0,height:0 }} animate={{ opacity:1,height:'auto' }} exit={{ opacity:0,height:0 }} className="mb-6 overflow-hidden">
             <div className="card">
               <div className="flex items-start justify-between mb-4">
-                <p className="font-semibold" style={{ color: 'var(--text-hi)' }}>Comparativo — Últimos 6 meses</p>
+                <p className="font-semibold" style={{ color:'var(--text-hi)' }}>Comparativo — Últimos 6 meses</p>
                 <div className="text-right">
                   <p className="section-title">Acumulado</p>
-                  <p className="font-bold text-sm mt-0.5" style={{ color: 'var(--success)' }}>
-                    R$ {totalAcumulado.toFixed(2).replace('.',',')}
-                  </p>
+                  <p className="font-bold text-sm mt-0.5" style={{ color:'var(--success)' }}>R$ {totalAcumulado.toFixed(2).replace('.',',')}</p>
                 </div>
               </div>
               <div className="space-y-2">
                 {historico.map(h => (
                   <div key={h.label} className="flex items-center gap-3">
-                    <span className="text-xs w-16 text-right" style={{ color: 'var(--text-lo)' }}>{h.label}</span>
-                    <div className="flex-1 rounded-full h-2" style={{ background: 'var(--bg)' }}>
-                      <div className="h-2 rounded-full" style={{ width: `${(h.faturamento / maxHist) * 100}%`, background: 'var(--brand)', opacity: .5 }} />
+                    <span className="text-xs w-16 text-right" style={{ color:'var(--text-lo)' }}>{h.label}</span>
+                    <div className="flex-1 rounded-full h-2" style={{ background:'var(--bg)' }}>
+                      <div className="h-2 rounded-full" style={{ width:`${(h.faturamento/maxHist)*100}%`, background:'var(--brand)', opacity:.5 }} />
                     </div>
-                    <span className="text-xs font-semibold w-24 text-right" style={{ color: 'var(--text-hi)' }}>
-                      R$ {h.faturamento.toFixed(2).replace('.',',')}
-                    </span>
+                    <span className="text-xs font-semibold w-24 text-right" style={{ color:'var(--text-hi)' }}>R$ {h.faturamento.toFixed(2).replace('.',',')}</span>
                   </div>
                 ))}
                 <div className="flex items-center gap-3">
-                  <span className="text-xs w-16 text-right font-bold" style={{ color: 'var(--brand)' }}>
-                    {MESES[mes].slice(0, 3)} {ano}
-                  </span>
-                  <div className="flex-1 rounded-full h-2" style={{ background: 'var(--bg)' }}>
-                    <div className="h-2 rounded-full" style={{ width: `${(faturamento / maxHist) * 100}%`, background: 'var(--brand)' }} />
+                  <span className="text-xs w-16 text-right font-bold" style={{ color:'var(--brand)' }}>{MESES[mes].slice(0,3)} {ano}</span>
+                  <div className="flex-1 rounded-full h-2" style={{ background:'var(--bg)' }}>
+                    <div className="h-2 rounded-full" style={{ width:`${(faturamento/maxHist)*100}%`, background:'var(--brand)' }} />
                   </div>
-                  <span className="text-xs font-bold w-24 text-right" style={{ color: 'var(--brand)' }}>
-                    R$ {faturamento.toFixed(2).replace('.',',')}
-                  </span>
+                  <span className="text-xs font-bold w-24 text-right" style={{ color:'var(--brand)' }}>R$ {faturamento.toFixed(2).replace('.',',')}</span>
                 </div>
               </div>
             </div>
@@ -272,126 +241,93 @@ export default function Financeiro() {
       </AnimatePresence>
 
       {/* Lucratividade por sabor */}
-      <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
-        <button
-          className="w-full flex items-center justify-between px-5 py-4"
-          onClick={() => setAbaSabor(v => !v)}
-        >
+      <div className="card" style={{ padding:0, overflow:'hidden' }}>
+        <button className="w-full flex items-center justify-between px-5 py-4" onClick={() => setAbaSabor(v => !v)}>
           <div className="text-left">
-            <p className="font-semibold" style={{ color: 'var(--text-hi)' }}>Lucratividade por sabor</p>
-            <p className="text-xs mt-0.5" style={{ color: 'var(--text-lo)' }}>Clique para ver análise e simular preços</p>
+            <p className="font-semibold" style={{ color:'var(--text-hi)' }}>Lucratividade por sabor</p>
+            <p className="text-xs mt-0.5" style={{ color:'var(--text-lo)' }}>Clique para ver análise e simular preços</p>
           </div>
-          <span style={{ color: 'var(--text-lo)' }}>{abaSabor ? '▲' : '▼'}</span>
+          <span style={{ color:'var(--text-lo)' }}>{abaSabor ? '▲' : '▼'}</span>
         </button>
 
         <AnimatePresence>
           {abaSabor && (
-            <motion.div
-              initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }}
-              className="overflow-hidden"
-            >
-              {/* ─── Banner de saúde financeira ─────────────────────── */}
+            <motion.div initial={{ height:0,opacity:0 }} animate={{ height:'auto',opacity:1 }} exit={{ height:0,opacity:0 }} className="overflow-hidden">
+
+              {/* Banner saúde */}
               {analiseGeral ? (
-                <div
-                  className="mx-5 mt-4 mb-2 rounded-xl px-4 py-3"
-                  style={{
-                    background: bannerStyle[analiseGeral.tipo].bg,
-                    border: `1px solid ${bannerStyle[analiseGeral.tipo].border}`,
-                  }}
-                >
-                  <p className="font-semibold text-sm" style={{ color: bannerStyle[analiseGeral.tipo].text }}>
-                    {analiseGeral.emoji} {analiseGeral.titulo}
-                  </p>
-                  <p className="text-xs mt-1" style={{ color: bannerStyle[analiseGeral.tipo].text, opacity: .85 }}>
-                    {analiseGeral.msg}
-                  </p>
+                <div className="mx-5 mt-4 mb-2 rounded-xl px-4 py-3" style={{ background:BS[analiseGeral.tipo].bg, border:`1px solid ${BS[analiseGeral.tipo].border}` }}>
+                  <p className="font-semibold text-sm" style={{ color:BS[analiseGeral.tipo].text }}>{analiseGeral.emoji} {analiseGeral.titulo}</p>
+                  <p className="text-xs mt-1" style={{ color:BS[analiseGeral.tipo].text, opacity:.85 }}>{analiseGeral.msg}</p>
                 </div>
               ) : (
-                <div
-                  className="mx-5 mt-4 mb-2 rounded-xl px-4 py-3"
-                  style={{ background: '#F8FAFC', border: '1px solid var(--border)' }}
-                >
-                  <p className="text-sm" style={{ color: 'var(--text-lo)' }}>
-                    💡 Cadastre o <strong>custo</strong> de cada sabor clicando em <strong>Editar</strong> para ver a análise de lucro.
+                <div className="mx-5 mt-4 mb-2 rounded-xl px-4 py-3" style={{ background:'#F8FAFC', border:'1px solid var(--border)' }}>
+                  <p className="text-sm" style={{ color:'var(--text-lo)' }}>
+                    💡 Cadastre o <strong>custo</strong> de cada sabor clicando em <strong>✏️ Editar</strong> para ver a análise de lucro.
                   </p>
                 </div>
               )}
 
-              <div className="tbl-wrap" style={{ borderTop: '1px solid var(--border)' }}>
+              <div className="tbl-wrap" style={{ borderTop:'1px solid var(--border)' }}>
                 <table className="tbl">
                   <thead>
-                    <tr>
-                      {['Sabor','Vendas','Preço/un','Custo/un','Lucro/un','Margem','Ações'].map(h => (
-                        <th key={h}>{h}</th>
-                      ))}
-                    </tr>
+                    <tr>{['Sabor','Vendas','Preço/un','Custo/un','Lucro/un','Margem','Ações'].map(h => <th key={h}>{h}</th>)}</tr>
                   </thead>
                   <tbody>
                     {todosSabores.map(s => {
                       const rec    = receitaPorNome(s.sabor)
                       const preco  = precos[s.sabor]?.preco ?? rec?.preco ?? 0
                       const custo  = precos[s.sabor]?.custo ?? 0
-                      const simVal = simulandoPreco === s.sabor && precoSimulado ? parseFloat(precoSimulado) : null
+                      const isSim  = simSabor === s.sabor
+                      const simVal = isSim && simPreco ? parseFloat(simPreco) : null
                       const precoMostrar = simVal || preco
                       const lucro  = precoMostrar - custo
                       const margem = precoMostrar > 0 ? ((lucro / precoMostrar) * 100).toFixed(0) : 0
-                      const isEdit = editandoPreco  === s.sabor
-                      const isSim  = simulandoPreco === s.sabor
                       return (
                         <tr key={s.sabor}>
-                          <td className="font-medium" style={{ color: 'var(--text-hi)' }}>{s.sabor}</td>
-                          <td>{s.qtd > 0 ? s.qtd : <span style={{ color: 'var(--text-lo)' }}>—</span>}</td>
+                          <td className="font-medium" style={{ color:'var(--text-hi)' }}>{s.sabor}</td>
+                          <td>{s.qtd > 0 ? s.qtd : <span style={{ color:'var(--text-lo)' }}>—</span>}</td>
+
+                          {/* Preço / simulação inline */}
                           <td>
-                            {isEdit ? (
+                            {isSim ? (
                               <div className="flex items-center gap-1">
                                 <input
-                                  type="number" autoFocus value={novoPreco}
-                                  onChange={e => setNovoPreco(e.target.value)}
-                                  className="field" style={{ width: 80, padding: '.25rem .5rem', fontSize: '.8125rem' }}
-                                  placeholder={preco}
+                                  type="number" autoFocus min="0" step="0.01"
+                                  value={simPreco}
+                                  onChange={e => setSimPreco(e.target.value)}
+                                  className="field" style={{ width:80, padding:'.25rem .5rem', fontSize:'.8125rem', background:'#FEF3C7' }}
                                 />
-                                <button onClick={() => salvarPreco(s.sabor)} className="btn btn-sm" style={{ background: 'var(--success)', color: '#fff' }}>Salvar</button>
-                                <button onClick={() => { setEditandoPreco(null); setNovoPreco('') }} className="btn btn-ghost btn-sm">X</button>
-                              </div>
-                            ) : isSim ? (
-                              <div className="flex items-center gap-1">
-                                <input
-                                  type="number" autoFocus value={precoSimulado}
-                                  onChange={e => setPrecoSimulado(e.target.value)}
-                                  className="field" style={{ width: 80, padding: '.25rem .5rem', fontSize: '.8125rem', background: '#FEF3C7' }}
-                                  placeholder={preco}
-                                />
-                                <button
-                                  onClick={() => { setEditandoPreco(s.sabor); setNovoPreco(precoSimulado); setSimulandoPreco(null) }}
-                                  className="btn btn-sm" style={{ background: 'var(--brand)', color: '#fff' }}
-                                >Salvar</button>
-                                <button onClick={() => { setSimulandoPreco(null); setPrecoSimulado('') }} className="btn btn-ghost btn-sm">X</button>
+                                <button onClick={() => { setSimSabor(null); setSimPreco('') }} className="btn btn-ghost btn-sm">X</button>
                               </div>
                             ) : (
-                              <span style={{ color: simVal ? 'var(--brand)' : 'var(--text-md)', fontWeight: simVal ? 600 : 400 }}>
-                                R$ {precoMostrar.toFixed(2).replace('.',',')}
-                                {simVal && <span className="badge badge-orange ml-1">simulado</span>}
+                              <span style={{ color:simVal?'var(--brand)':'var(--text-md)', fontWeight:simVal?600:400 }}>
+                                {fmt(precoMostrar)}
+                                {simVal && <span className="badge badge-orange ml-1 text-xs">sim</span>}
                               </span>
                             )}
                           </td>
-                          <td style={{ color: 'var(--text-lo)' }}>R$ {custo.toFixed(2).replace('.',',')}</td>
-                          <td style={{ color: lucro >= 0 ? 'var(--success)' : 'var(--danger)', fontWeight: 600 }}>
-                            R$ {lucro.toFixed(2).replace('.',',')}
-                          </td>
+
+                          <td style={{ color:'var(--text-lo)' }}>{fmt(custo)}</td>
+                          <td style={{ color:lucro>=0?'var(--success)':'var(--danger)', fontWeight:600 }}>{fmt(lucro)}</td>
                           <td>
-                            <span className={`badge ${Number(margem) >= 30 ? 'badge-green' : Number(margem) >= 10 ? 'badge-orange' : 'badge-red'}`}>
+                            <span className={`badge ${Number(margem)>=30?'badge-green':Number(margem)>=10?'badge-orange':'badge-red'}`}>
                               {margem}%
+                            </span>
+                            {/* Info ao lado da margem */}
+                            <span className="ml-1 text-xs" style={{ color:'var(--text-lo)' }}>
+                              {Number(margem) >= 30 ? '✓ ok' : Number(margem) > 0 ? '↑ ajustar' : lucro < 0 ? '⚠ prejuízo' : ''}
                             </span>
                           </td>
                           <td>
                             <div className="flex gap-1">
                               <button
-                                onClick={() => { setSimulandoPreco(s.sabor); setPrecoSimulado(String(preco)); setEditandoPreco(null) }}
-                                className="btn btn-ghost btn-sm" style={{ color: 'var(--warn)' }}
-                              >🔮 Simular</button>
+                                onClick={() => { setSimSabor(s.sabor); setSimPreco(String(preco)) }}
+                                className="btn btn-ghost btn-sm" style={{ color:'var(--warn)' }}
+                              >🔮 Sim</button>
                               <button
-                                onClick={() => { setEditandoPreco(s.sabor); setNovoPreco(String(preco)); setSimulandoPreco(null) }}
-                                className="btn btn-ghost btn-sm" style={{ color: 'var(--brand)' }}
+                                onClick={() => abrirEditar(s)}
+                                className="btn btn-ghost btn-sm" style={{ color:'var(--brand)' }}
                               >✏️ Editar</button>
                             </div>
                           </td>
@@ -405,6 +341,100 @@ export default function Financeiro() {
           )}
         </AnimatePresence>
       </div>
+
+      {/* ─── Modal Editar Preço + Custo ───────────────────────── */}
+      <AnimatePresence>
+        {modalEditar && (
+          <motion.div
+            initial={{ opacity:0 }} animate={{ opacity:1 }} exit={{ opacity:0 }}
+            className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4"
+            style={{ background:'rgba(0,0,0,.5)' }}
+            onClick={() => setModalEditar(null)}
+          >
+            <motion.div
+              initial={{ y:32,opacity:0 }} animate={{ y:0,opacity:1 }} exit={{ y:32,opacity:0 }}
+              transition={{ type:'spring', damping:26, stiffness:320 }}
+              className="w-full max-w-sm rounded-2xl p-6"
+              style={{ background:'var(--surface)' }}
+              onClick={e => e.stopPropagation()}
+            >
+              <h2 className="font-display text-xl mb-1" style={{ color:'var(--text-hi)' }}>✏️ Editar preços</h2>
+              <p className="text-sm mb-5" style={{ color:'var(--text-lo)' }}>{modalEditar.sabor}</p>
+
+              {/* Valores atuais como referência */}
+              <div className="flex gap-3 mb-4 p-3 rounded-xl" style={{ background:'var(--bg)', border:'1px solid var(--border)' }}>
+                <div className="flex-1 text-center">
+                  <p className="text-xs" style={{ color:'var(--text-lo)' }}>Preço atual</p>
+                  <p className="font-bold" style={{ color:'var(--text-hi)' }}>{fmt(modalEditar.preco)}</p>
+                </div>
+                <div style={{ width:1, background:'var(--border)' }} />
+                <div className="flex-1 text-center">
+                  <p className="text-xs" style={{ color:'var(--text-lo)' }}>Custo atual</p>
+                  <p className="font-bold" style={{ color:'var(--text-hi)' }}>{fmt(modalEditar.custo)}</p>
+                </div>
+                <div style={{ width:1, background:'var(--border)' }} />
+                <div className="flex-1 text-center">
+                  <p className="text-xs" style={{ color:'var(--text-lo)' }}>Lucro atual</p>
+                  <p className="font-bold" style={{ color: modalEditar.preco - modalEditar.custo >= 0 ? 'var(--success)' : 'var(--danger)' }}>
+                    {fmt(modalEditar.preco - modalEditar.custo)}
+                  </p>
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <div>
+                  <label className="label">Novo preço de venda (R$)</label>
+                  <input
+                    type="number" min="0" step="0.01" autoFocus
+                    className="field mt-1" value={editPreco}
+                    onChange={e => setEditPreco(e.target.value)}
+                    placeholder="Ex: 12.00"
+                  />
+                </div>
+                <div>
+                  <label className="label">Custo por unidade (R$)</label>
+                  <input
+                    type="number" min="0" step="0.01"
+                    className="field mt-1" value={editCusto}
+                    onChange={e => setEditCusto(e.target.value)}
+                    placeholder="Ex: 4.50"
+                  />
+                  <p className="text-xs mt-1" style={{ color:'var(--text-lo)' }}>Soma dos ingredientes ÷ cookies por massa</p>
+                </div>
+
+                {/* Preview do novo lucro em tempo real */}
+                {editPreco && editCusto && (
+                  <div className="p-3 rounded-xl" style={{ background:'var(--bg)', border:'1px solid var(--border)' }}>
+                    {(() => {
+                      const p = parseFloat(editPreco) || 0
+                      const c = parseFloat(editCusto) || 0
+                      const l = p - c
+                      const m = p > 0 ? ((l / p) * 100).toFixed(0) : 0
+                      return (
+                        <div className="flex justify-between items-center">
+                          <span className="text-xs" style={{ color:'var(--text-lo)' }}>Preview novo lucro</span>
+                          <div className="flex items-center gap-2">
+                            <span className="font-bold text-sm" style={{ color: l >= 0 ? 'var(--success)' : 'var(--danger)' }}>{fmt(l)}</span>
+                            <span className={`badge ${Number(m)>=30?'badge-green':Number(m)>=10?'badge-orange':'badge-red'}`}>{m}%</span>
+                          </div>
+                        </div>
+                      )
+                    })()}
+                  </div>
+                )}
+              </div>
+
+              <div className="flex gap-2 mt-5">
+                <button onClick={() => setModalEditar(null)} className="btn btn-secondary flex-1">Cancelar</button>
+                <button onClick={salvarEdicao} disabled={salvando} className="btn btn-primary flex-1">
+                  {salvando ? <span className="spinner" style={{ width:16,height:16 }} /> : 'Salvar'}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
     </div>
   )
 }
