@@ -2,15 +2,16 @@ import { NavLink, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabaseClient'
 
 const NAV = [
-  { to: '/',           icon: '⊞',  label: 'Dashboard'   },
-  { to: '/vendas',     icon: '🛒',  label: 'Vendas'      },
-  { to: '/crm',        icon: '👥',  label: 'CRM'         },
-  { to: '/financeiro', icon: '💰',  label: 'Financeiro'  },
-  { to: '/estoque',    icon: '📦',  label: 'Estoque'     },
-  { to: '/producao',   icon: '🍪',  label: 'Produção'    },
-  { to: '/receitas',   icon: '📋',  label: 'Receitas'    },
-  { to: '/sazonais',   icon: '🥚',  label: 'Sazonais'    },
-  { to: '/config',     icon: '⚙️',  label: 'Config'      },
+  { to: '/',            icon: '⊞',  label: 'Dashboard'    },
+  { to: '/vendas',      icon: '🛒',  label: 'Vendas'       },
+  { to: '/crm',         icon: '👥',  label: 'CRM'          },
+  { to: '/financeiro',  icon: '💰',  label: 'Financeiro'   },
+  { to: '/estoque',     icon: '📦',  label: 'Estoque'      },
+  { to: '/calculadora', icon: '🧮',  label: 'Calculadora'  },
+  { to: '/producao',    icon: '🍪',  label: 'Produção'     },
+  { to: '/receitas',    icon: '📋',  label: 'Receitas'     },
+  { to: '/sazonais',    icon: '🥚',  label: 'Sazonais'     },
+  { to: '/config',      icon: '⚙️',  label: 'Config'       },
 ]
 
 export default function Sidebar({ mobileOpen, onMobileClose }) {
@@ -43,8 +44,8 @@ export default function Sidebar({ mobileOpen, onMobileClose }) {
           <div className="flex items-center gap-2">
             <span className="text-xl">🍪</span>
             <div>
-              <p className="text-white font-bold text-sm tracking-wide">BakeFlow</p>
-              <p className="text-white/40 text-xs">Gestão da Confeitaria</p>
+              <p className="text-white font-bold text-sm tracking-wide">Doce Controle</p>
+              <p className="text-white/40 text-xs">Estoque · Vendas · Clientes</p>
             </div>
           </div>
         </div>

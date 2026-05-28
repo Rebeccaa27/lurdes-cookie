@@ -5,12 +5,6 @@ import { catalogoReceitas } from '../lib/receitas'
 
 const MESES = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro']
 
-function calcCustoUn(sabor) {
-  const r = catalogoReceitas[sabor]
-  if (!r) return 0
-  return 0
-}
-
 export default function Financeiro() {
   const hoje = new Date()
   const [mes, setMes]   = useState(hoje.getMonth())
@@ -21,8 +15,11 @@ export default function Financeiro() {
   const [mostrarHist, setMostrarHist] = useState(false)
   const [abaSabor, setAbaSabor] = useState(false)
   const [editandoPreco, setEditandoPreco] = useState(null)
+  const [simulandoPreco, setSimulandoPreco] = useState(null)
   const [novoPreco, setNovoPreco] = useState('')
+  const [precoSimulado, setPrecoSimulado] = useState('')
   const [precos, setPrecos]     = useState({})
+  const [acumulado, setAcumulado] = useState(0)
 
   const buscarVendas = useCallback(async () => {
     setLoading(true)
@@ -53,7 +50,9 @@ export default function Financeiro() {
       const pago = (data || []).filter(v => v.pag === 'pago').reduce((s, v) => s + v.valor * v.qtd, 0)
       meses.push({ label: `${MESES[m].slice(0,3)} ${a}`, faturamento: fat, recebido: pago })
     }
-    setHistorico(meses.reverse())
+    const lista = meses.reverse()
+    setHistorico(lista)
+    setAcumulado(lista.reduce((s, h) => s + h.faturamento, 0))
   }, [mes, ano])
 
   const buscarPrecos = useCallback(async () => {
@@ -69,7 +68,6 @@ export default function Financeiro() {
   useEffect(() => { buscarHistorico() }, [buscarHistorico])
   useEffect(() => { buscarPrecos() }, [buscarPrecos])
 
-  // Realtime
   useEffect(() => {
     const ch = supabase.channel('fin-rt')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'vendas' }, buscarVendas)
@@ -80,8 +78,8 @@ export default function Financeiro() {
   const faturamento = vendas.reduce((s, v) => s + v.valor * v.qtd, 0)
   const recebido    = vendas.filter(v => v.pag === 'pago').reduce((s, v) => s + v.valor * v.qtd, 0)
   const aReceber    = faturamento - recebido
+  const totalAcumulado = acumulado + faturamento
 
-  // Lucratividade por sabor
   const saboresMap = {}
   vendas.forEach(v => {
     if (!saboresMap[v.sabor]) saboresMap[v.sabor] = { sabor: v.sabor, qtd: 0, receita: 0 }
@@ -94,7 +92,7 @@ export default function Financeiro() {
     const p = parseFloat(novoPreco)
     if (!p || isNaN(p)) return
     const rec = catalogoReceitas[sabor]
-    const custo = precos[sabor]?.custo || (rec ? calcCustoUn(sabor) : 0)
+    const custo = precos[sabor]?.custo || 0
     await supabase.from('precos_sabores').upsert(
       { sabor, preco: p, custo, atualizado_em: new Date().toISOString() },
       { onConflict: 'sabor' }
@@ -113,6 +111,7 @@ export default function Financeiro() {
 
   const fatAnterior = historico.length ? historico[historico.length - 1].faturamento : 0
   const variacao    = fatAnterior > 0 ? ((faturamento - fatAnterior) / fatAnterior * 100).toFixed(1) : null
+  const maxHist     = Math.max(faturamento, ...historico.map(x => x.faturamento), 1)
 
   return (
     <div className="max-w-4xl mx-auto">
@@ -121,13 +120,15 @@ export default function Financeiro() {
           <h1 className="text-2xl font-bold" style={{ color: '#1C1917' }}>Financeiro</h1>
           <p className="text-sm mt-0.5" style={{ color: '#78716C' }}>Caixa do mês e lucratividade por sabor</p>
         </div>
-        <button
-          onClick={() => setMostrarHist(v => !v)}
-          className="px-3 py-2 rounded-lg text-sm font-medium transition"
-          style={{ background: '#fff', border: '1px solid #E5E0D9', color: '#44403C' }}
-        >
-          {mostrarHist ? 'Ocultar histórico' : '📅 Ver meses anteriores'}
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={() => setMostrarHist(v => !v)}
+            className="px-3 py-2 rounded-lg text-sm font-medium transition"
+            style={{ background: '#fff', border: '1px solid #E5E0D9', color: '#44403C' }}
+          >
+            {mostrarHist ? 'Ocultar' : '📅 Comparar Meses'}
+          </button>
+        </div>
       </div>
 
       {/* Nav mês */}
@@ -169,7 +170,13 @@ export default function Financeiro() {
             className="mb-6 overflow-hidden"
           >
             <div className="rounded-xl p-4" style={{ background: '#fff', border: '1px solid #E5E0D9' }}>
-              <p className="font-semibold text-sm mb-4" style={{ color: '#1C1917' }}>Comparativo — Últimos 6 meses</p>
+              <div className="flex items-start justify-between mb-4">
+                <p className="font-semibold text-sm" style={{ color: '#1C1917' }}>📊 Comparativo — Últimos 6 meses</p>
+                <div className="text-right">
+                  <p className="text-xs" style={{ color: '#78716C' }}>Acumulado total</p>
+                  <p className="font-bold text-sm" style={{ color: '#15803D' }}>R$ {totalAcumulado.toFixed(2).replace('.',',')}</p>
+                </div>
+              </div>
               <div className="space-y-2">
                 {historico.map(h => (
                   <div key={h.label} className="flex items-center gap-3">
@@ -177,10 +184,7 @@ export default function Financeiro() {
                     <div className="flex-1 bg-stone-100 rounded-full h-2">
                       <div
                         className="h-2 rounded-full"
-                        style={{
-                          width: `${faturamento > 0 ? (h.faturamento / Math.max(faturamento, ...historico.map(x=>x.faturamento))) * 100 : 0}%`,
-                          background: '#C2410C'
-                        }}
+                        style={{ width: `${(h.faturamento / maxHist) * 100}%`, background: '#C2410C', opacity: 0.6 }}
                       />
                     </div>
                     <span className="text-xs font-semibold w-24 text-right" style={{ color: '#1C1917' }}>
@@ -192,7 +196,7 @@ export default function Financeiro() {
                 <div className="flex items-center gap-3">
                   <span className="text-xs w-16 text-right font-bold" style={{ color: '#C2410C' }}>{MESES[mes].slice(0,3)} {ano}</span>
                   <div className="flex-1 bg-stone-100 rounded-full h-2">
-                    <div className="h-2 rounded-full" style={{ width: '100%', background: '#C2410C', opacity: 0.3 }} />
+                    <div className="h-2 rounded-full" style={{ width: `${(faturamento / maxHist) * 100}%`, background: '#C2410C' }} />
                   </div>
                   <span className="text-xs font-bold w-24 text-right" style={{ color: '#C2410C' }}>
                     R$ {faturamento.toFixed(2).replace('.',',')}
@@ -230,19 +234,22 @@ export default function Financeiro() {
                   <table className="w-full text-sm">
                     <thead>
                       <tr style={{ borderBottom: '1px solid #E5E0D9' }}>
-                        {['Sabor','Vendas','Preço/un','Custo/un','Lucro/un','Margem',''].map(h => (
+                        {['Sabor','Vendas','Preço/un','Custo/un','Lucro/un','Margem','Ações'].map(h => (
                           <th key={h} className="text-left py-2 pr-4 text-xs font-semibold" style={{ color: '#78716C' }}>{h}</th>
                         ))}
                       </tr>
                     </thead>
                     <tbody>
                       {(sabores.length > 0 ? sabores : Object.keys(catalogoReceitas).map(id => ({ sabor: id, qtd: 0, receita: 0 }))).map(s => {
-                        const rec   = catalogoReceitas[s.sabor]
-                        const preco = precos[s.sabor]?.preco || rec?.preco || 0
-                        const custo = precos[s.sabor]?.custo || 0
-                        const lucro = preco - custo
-                        const margem = preco > 0 ? ((lucro / preco) * 100).toFixed(0) : 0
-                        const editando = editandoPreco === s.sabor
+                        const rec    = catalogoReceitas[s.sabor]
+                        const preco  = precos[s.sabor]?.preco || rec?.preco || 0
+                        const custo  = precos[s.sabor]?.custo || 0
+                        const simVal = simulandoPreco === s.sabor && precoSimulado ? parseFloat(precoSimulado) : null
+                        const precoMostrar = simVal || preco
+                        const lucro  = precoMostrar - custo
+                        const margem = precoMostrar > 0 ? ((lucro / precoMostrar) * 100).toFixed(0) : 0
+                        const editando  = editandoPreco  === s.sabor
+                        const simulando = simulandoPreco === s.sabor
                         return (
                           <tr key={s.sabor} style={{ borderBottom: '1px solid #F5F0EB' }}>
                             <td className="py-2.5 pr-4 font-medium" style={{ color: '#1C1917' }}>{rec?.nome || s.sabor}</td>
@@ -259,11 +266,31 @@ export default function Financeiro() {
                                     placeholder={preco}
                                     autoFocus
                                   />
-                                  <button onClick={() => salvarPreco(s.sabor)} className="text-xs px-2 py-0.5 rounded text-white" style={{ background: '#15803D' }}>✓</button>
+                                  <button onClick={() => salvarPreco(s.sabor)} className="text-xs px-2 py-0.5 rounded text-white" style={{ background: '#15803D' }}>💾 Salvar</button>
                                   <button onClick={() => { setEditandoPreco(null); setNovoPreco('') }} className="text-xs px-1">✕</button>
                                 </div>
+                              ) : simulando ? (
+                                <div className="flex items-center gap-1">
+                                  <input
+                                    type="number"
+                                    value={precoSimulado}
+                                    onChange={e => setPrecoSimulado(e.target.value)}
+                                    className="w-20 border rounded px-1.5 py-0.5 text-xs"
+                                    style={{ borderColor: '#E5E0D9', background: '#FEF3C7' }}
+                                    placeholder={preco}
+                                    autoFocus
+                                  />
+                                  <button
+                                    onClick={() => { setEditandoPreco(s.sabor); setNovoPreco(precoSimulado); setSimulandoPreco(null) }}
+                                    className="text-xs px-2 py-0.5 rounded text-white" style={{ background: '#C2410C' }}
+                                  >💾 Salvar</button>
+                                  <button onClick={() => { setSimulandoPreco(null); setPrecoSimulado('') }} className="text-xs px-1">✕</button>
+                                </div>
                               ) : (
-                                <span style={{ color: '#44403C' }}>R$ {preco.toFixed(2).replace('.',',')}</span>
+                                <span style={{ color: simVal ? '#C2410C' : '#44403C', fontWeight: simVal ? 600 : 400 }}>
+                                  R$ {precoMostrar.toFixed(2).replace('.',',')}
+                                  {simVal && <span className="ml-1 text-xs text-amber-600">(simulado)</span>}
+                                </span>
                               )}
                             </td>
                             <td className="py-2.5 pr-4" style={{ color: '#78716C' }}>R$ {custo.toFixed(2).replace('.',',')}</td>
@@ -272,13 +299,20 @@ export default function Financeiro() {
                               <span className="px-2 py-0.5 rounded-full text-xs font-semibold" style={{ background: '#DCFCE7', color: '#15803D' }}>{margem}%</span>
                             </td>
                             <td className="py-2.5">
-                              <button
-                                onClick={() => { setEditandoPreco(s.sabor); setNovoPreco(preco.toString()) }}
-                                className="text-xs px-2 py-1 rounded hover:bg-stone-100 transition"
-                                style={{ color: '#C2410C' }}
-                              >
-                                Editar preço
-                              </button>
+                              <div className="flex gap-1">
+                                <button
+                                  onClick={() => { setSimulandoPreco(s.sabor); setPrecoSimulado(preco.toString()); setEditandoPreco(null) }}
+                                  className="text-xs px-2 py-1 rounded hover:bg-amber-50 transition"
+                                  style={{ color: '#92400E' }}
+                                  title="Simular novo preço sem salvar"
+                                >🔮 Simular</button>
+                                <button
+                                  onClick={() => { setEditandoPreco(s.sabor); setNovoPreco(preco.toString()); setSimulandoPreco(null) }}
+                                  className="text-xs px-2 py-1 rounded hover:bg-stone-100 transition"
+                                  style={{ color: '#C2410C' }}
+                                  title="Editar e salvar preço"
+                                >✏️ Editar</button>
+                              </div>
                             </td>
                           </tr>
                         )

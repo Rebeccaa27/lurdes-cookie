@@ -7,7 +7,7 @@ import { ToastProvider } from './components/Toast'
 import Sidebar from './components/Sidebar'
 import Header from './components/Header'
 
-import Login      from './pages/Login'
+import Login       from './pages/Login'
 import Dashboard  from './pages/Dashboard'
 import Vendas     from './pages/Vendas'
 import CRM        from './pages/CRM'
@@ -17,6 +17,7 @@ import Producao   from './pages/Producao'
 import Financeiro from './pages/Financeiro'
 import Sazonais   from './pages/Sazonais'
 import Config     from './pages/Config'
+import Calculadora from './pages/Calculadora'
 
 function ProtectedLayout() {
   const [mobileOpen, setMobileOpen] = useState(false)
@@ -32,18 +33,19 @@ function ProtectedLayout() {
         <main className="flex-1 p-4 lg:p-6" style={{ backgroundColor: '#F3EFE9' }}>
           <AnimatePresence mode="wait">
             <Routes>
-              <Route path="/"           element={<Dashboard />}  />
-              <Route path="/vendas"     element={<Vendas />}     />
-              <Route path="/crm"        element={<CRM />}        />
-              <Route path="/clientes"   element={<Navigate to="/crm" replace />} />
-              <Route path="/dividas"    element={<Navigate to="/crm" replace />} />
-              <Route path="/estoque"    element={<Estoque />}    />
-              <Route path="/producao"   element={<Producao />}   />
-              <Route path="/receitas"   element={<Receitas />}   />
-              <Route path="/financeiro" element={<Financeiro />} />
-              <Route path="/sazonais"   element={<Sazonais />}   />
-              <Route path="/config"     element={<Config />}     />
-              <Route path="*"           element={<Navigate to="/" replace />} />
+              <Route path="/"             element={<Dashboard />}   />
+              <Route path="/vendas"       element={<Vendas />}      />
+              <Route path="/crm"          element={<CRM />}         />
+              <Route path="/clientes"     element={<Navigate to="/crm" replace />} />
+              <Route path="/dividas"      element={<Navigate to="/crm" replace />} />
+              <Route path="/estoque"      element={<Estoque />}     />
+              <Route path="/producao"     element={<Producao />}    />
+              <Route path="/receitas"     element={<Receitas />}    />
+              <Route path="/financeiro"   element={<Financeiro />}  />
+              <Route path="/sazonais"     element={<Sazonais />}    />
+              <Route path="/calculadora"  element={<Calculadora />} />
+              <Route path="/config"       element={<Config />}      />
+              <Route path="*"             element={<Navigate to="/" replace />} />
             </Routes>
           </AnimatePresence>
         </main>

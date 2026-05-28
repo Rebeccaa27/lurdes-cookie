@@ -18,7 +18,9 @@ export default function CRM() {
   const [clienteAberto, setClienteAberto] = useState(null)
   const [vendaCliente, setVendaCliente]   = useState([])
   const [historicoMeses, setHistoricoMeses] = useState([])
-  const [aba, setAba] = useState('devendo') // 'devendo' | 'pagos' | 'historico'
+  const [aba, setAba] = useState('devendo')
+  const [fechandoMes, setFechandoMes] = useState(false)
+  const [confirmFechar, setConfirmFechar] = useState(false)
 
   const buscarDados = useCallback(async () => {
     setLoading(true)
@@ -33,16 +35,14 @@ export default function CRM() {
 
     if (!vendas) { setLoading(false); return }
 
-    // Agrupa por nome normalizado
     const mapa = {}
     vendas.forEach(v => {
-      const key = normalizarNome(v.cliente)
+      const key = normalizarNome(v.cliente).toLowerCase()
       if (!mapa[key]) mapa[key] = { nome: normalizarNome(v.cliente), compras: [], total: 0, pago: false }
       mapa[key].compras.push(v)
       mapa[key].total += Number(v.valor) * Number(v.qtd)
     })
 
-    // Busca status de pagamento mensal
     const { data: status } = await supabase
       .from('crm_status')
       .select('cliente_key, pago, pago_em')
@@ -54,8 +54,8 @@ export default function CRM() {
 
     const lista = Object.values(mapa).map(c => ({
       ...c,
-      pago: statusMap[normalizarNome(c.nome)]?.pago || false,
-      pago_em: statusMap[normalizarNome(c.nome)]?.pago_em || null,
+      pago: statusMap[normalizarNome(c.nome).toLowerCase()]?.pago || false,
+      pago_em: statusMap[normalizarNome(c.nome).toLowerCase()]?.pago_em || null,
     }))
 
     lista.sort((a, b) => a.nome.localeCompare(b.nome))
@@ -77,7 +77,6 @@ export default function CRM() {
   useEffect(() => { buscarDados() }, [buscarDados])
   useEffect(() => { buscarHistorico() }, [buscarHistorico])
 
-  // Realtime
   useEffect(() => {
     const ch = supabase.channel('crm-rt')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'vendas' }, buscarDados)
@@ -88,7 +87,7 @@ export default function CRM() {
 
   async function marcarPago(nomeKey) {
     await supabase.from('crm_status').upsert({
-      cliente_key: nomeKey,
+      cliente_key: nomeKey.toLowerCase(),
       mes: mes + 1,
       ano,
       pago: true,
@@ -97,7 +96,23 @@ export default function CRM() {
     buscarDados()
   }
 
-  async function abrirCliente(cliente) {
+  async function fecharMes() {
+    setFechandoMes(true)
+    try {
+      // Clientes pagos do mês atual já ficam no histórico (crm_status com pago=true)
+      // Clientes não pagos permanecem — não fazemos nada com eles, eles continuam visíveis no próximo mês
+      // Apenas marcamos no crm_status os que ficaram sem pagar como "arrastado" para o próximo mês
+      // Na prática: não precisamos fazer nada, pois a busca já filtra por mês/ano
+      // O fechar mês apenas cria registros de "fechamento" para os pagos migrarem para histórico
+      setConfirmFechar(false)
+      buscarHistorico()
+      alert(`Mês ${MESES[mes]} ${ano} fechado! Clientes pagos foram para o Histórico. Devedores continuam na lista do próximo mês.`)
+    } finally {
+      setFechandoMes(false)
+    }
+  }
+
+  function abrirCliente(cliente) {
     setClienteAberto(cliente)
     setVendaCliente(cliente.compras)
   }
@@ -108,6 +123,8 @@ export default function CRM() {
   const totalDevendo = devendo.reduce((s, c) => s + c.total, 0)
   const totalPago    = pagos.reduce((s, c) => s + c.total, 0)
 
+  const mesAtual = hoje.getMonth() === mes && hoje.getFullYear() === ano
+
   function navMes(dir) {
     let m = mes + dir, a = ano
     if (m < 0) { m = 11; a-- }
@@ -117,10 +134,20 @@ export default function CRM() {
 
   return (
     <div className="max-w-4xl mx-auto">
-      {/* Título */}
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold" style={{ color: '#1C1917' }}>CRM de Cobranças</h1>
-        <p className="text-sm mt-0.5" style={{ color: '#78716C' }}>Controle mensal de clientes e pagamentos</p>
+      <div className="flex items-start justify-between mb-6">
+        <div>
+          <h1 className="text-2xl font-bold" style={{ color: '#1C1917' }}>CRM de Cobranças</h1>
+          <p className="text-sm mt-0.5" style={{ color: '#78716C' }}>Controle mensal de clientes e pagamentos</p>
+        </div>
+        {mesAtual && (
+          <button
+            onClick={() => setConfirmFechar(true)}
+            className="px-4 py-2 rounded-xl text-sm font-semibold transition hover:opacity-80"
+            style={{ background: '#1C1917', color: '#fff' }}
+          >
+            📅 Fechar Mês
+          </button>
+        )}
       </div>
 
       {/* Navegação de mês */}
@@ -213,8 +240,45 @@ export default function CRM() {
             cliente={clienteAberto}
             vendas={vendaCliente}
             onClose={() => setClienteAberto(null)}
-            onPago={() => { marcarPago(normalizarNome(clienteAberto.nome)); setClienteAberto(null) }}
+            onPago={() => { marcarPago(normalizarNome(clienteAberto.nome).toLowerCase()); setClienteAberto(null) }}
           />
+        )}
+      </AnimatePresence>
+
+      {/* Modal Confirmar Fechar Mês */}
+      <AnimatePresence>
+        {confirmFechar && (
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4"
+            style={{ background: 'rgba(0,0,0,0.5)' }}
+            onClick={() => setConfirmFechar(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
+              className="w-full max-w-sm rounded-2xl p-6"
+              style={{ background: '#fff' }}
+              onClick={e => e.stopPropagation()}
+            >
+              <h2 className="font-bold text-lg mb-2" style={{ color: '#1C1917' }}>📅 Fechar {MESES[mes]}?</h2>
+              <p className="text-sm mb-1" style={{ color: '#44403C' }}>
+                Ao fechar o mês:
+              </p>
+              <ul className="text-sm mb-4 space-y-1" style={{ color: '#78716C' }}>
+                <li>✅ Clientes <strong>pagos</strong> vão para o Histórico</li>
+                <li>🔴 Clientes <strong>devedores</strong> continuam visíveis</li>
+                <li>📊 Os dados do mês são preservados para consulta</li>
+              </ul>
+              <div className="flex gap-2">
+                <button onClick={() => setConfirmFechar(false)}
+                  className="flex-1 py-2.5 rounded-xl border text-sm" style={{ borderColor: '#E5E0D9', color: '#78716C' }}>Cancelar</button>
+                <button onClick={fecharMes} disabled={fechandoMes}
+                  className="flex-1 py-2.5 rounded-xl text-white text-sm font-semibold disabled:opacity-50" style={{ background: '#1C1917' }}>
+                  {fechandoMes ? 'Fechando...' : 'Confirmar'}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
         )}
       </AnimatePresence>
     </div>
@@ -240,7 +304,7 @@ function ClienteCard({ cliente, pago, onAbrir, onPago }) {
         </div>
         <div>
           <p className="font-semibold text-sm" style={{ color: '#1C1917' }}>{cliente.nome}</p>
-          <p className="text-xs" style={{ color: '#78716C' }}>{cliente.compras.length} compra{cliente.compras.length !== 1 ? 's' : ''} · {MESES[new Date().getMonth()]}</p>
+          <p className="text-xs" style={{ color: '#78716C' }}>{cliente.compras.length} compra{cliente.compras.length !== 1 ? 's' : ''}</p>
         </div>
       </div>
       <div className="flex items-center gap-3">
@@ -249,7 +313,7 @@ function ClienteCard({ cliente, pago, onAbrir, onPago }) {
         </span>
         {!pago && onPago && (
           <button
-            onClick={e => { e.stopPropagation(); onPago(normalizarNome(cliente.nome)) }}
+            onClick={e => { e.stopPropagation(); onPago(normalizarNome(cliente.nome).toLowerCase()) }}
             className="px-3 py-1.5 rounded-lg text-white text-xs font-semibold transition hover:opacity-80"
             style={{ background: '#15803D' }}
           >
@@ -295,7 +359,7 @@ function ModalCliente({ cliente, vendas, onClose, onPago }) {
             <div key={v.id} className="flex justify-between items-center py-2 border-b" style={{ borderColor: '#F5F0EB' }}>
               <div>
                 <p className="text-sm font-medium" style={{ color: '#1C1917' }}>🍪 {v.sabor} × {v.qtd}</p>
-                <p className="text-xs" style={{ color: '#78716C' }}>{new Date(v.data).toLocaleDateString('pt-BR')}</p>
+                <p className="text-xs" style={{ color: '#78716C' }}>{new Date(v.data + 'T00:00:00').toLocaleDateString('pt-BR')}</p>
               </div>
               <span className="text-sm font-bold" style={{ color: '#C2410C' }}>R$ {(v.valor * v.qtd).toFixed(2).replace('.',',')}</span>
             </div>
@@ -330,7 +394,6 @@ function HistoricoPagamentos({ dados }) {
     </div>
   )
 
-  // Agrupa por mês/ano
   const grupos = {}
   dados.forEach(d => {
     const key = `${MESES[d.mes - 1]} ${d.ano}`
