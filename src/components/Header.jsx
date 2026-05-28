@@ -1,32 +1,36 @@
+import { Menu } from 'lucide-react'
+import { useLocation } from 'react-router-dom'
+
+const TITLES = {
+  '/':            'Dashboard',
+  '/vendas':      'Vendas',
+  '/crm':         'CRM',
+  '/financeiro':  'Financeiro',
+  '/estoque':     'Estoque',
+  '/calculadora': 'Calculadora',
+  '/producao':    'Produção',
+  '/receitas':    'Receitas',
+  '/sazonais':    'Sazonais',
+  '/config':      'Configurações',
+}
+
 export default function Header({ onMenuClick }) {
-  const now = new Date()
-  const dia = now.toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long' })
+  const { pathname } = useLocation()
+  const title = TITLES[pathname] ?? 'Doce Controle'
 
   return (
     <header
-      className="sticky top-0 z-20 flex items-center justify-between px-4 py-3 border-b"
-      style={{ background: '#FAF8F5', borderColor: '#E5E0D9' }}
+      className="sticky top-0 z-20 flex items-center h-14 px-4 lg:px-6"
+      style={{ background: '#F3EFE9', borderBottom: '1px solid #E8E2DA' }}
     >
       <button
+        className="lg:hidden mr-3 p-1.5 rounded-lg transition hover:bg-black/8"
         onClick={onMenuClick}
-        className="lg:hidden p-1.5 rounded-lg hover:bg-black/5 transition"
+        style={{ color: '#78716C' }}
       >
-        <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-          <path d="M3 12h18M3 6h18M3 18h18" strokeLinecap="round" />
-        </svg>
+        <Menu size={18} />
       </button>
-
-      <div className="hidden lg:block" />
-
-      <div className="flex items-center gap-3">
-        <span className="text-xs capitalize" style={{ color: '#78716C' }}>{dia}</span>
-        <div
-          className="w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-bold"
-          style={{ background: '#C2410C' }}
-        >
-          L
-        </div>
-      </div>
+      <p className="text-sm font-semibold" style={{ color: '#1A1714' }}>{title}</p>
     </header>
   )
 }
