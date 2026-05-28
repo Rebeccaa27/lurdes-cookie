@@ -1,30 +1,32 @@
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabaseClient'
-import { INGREDIENTES } from '../lib/receitas'
+import { INGREDIENTES, RECEITAS_LIST } from '../lib/receitas'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useToast } from '../components/Toast'
 
+const SABORES_LISTA = RECEITAS_LIST.map(r => r.nome).sort()
+
 export default function Estoque() {
   const toast = useToast()
-  const [aba, setAba]               = useState('cookies')  // 'cookies' | 'ingredientes'
-  const [cookies, setCookies]       = useState([])
+  const [aba, setAba]           = useState('cookies')
+  const [cookies, setCookies]   = useState([])
   const [ingredientes, setIngredientes] = useState([])
-  const [loading, setLoading]       = useState(true)
+  const [loading, setLoading]   = useState(true)
+  const [salvando, setSalvando] = useState(false)
 
-  // Modais
-  const [modalCookie, setModalCookie]   = useState(false)
-  const [modalIng, setModalIng]         = useState(false)
-  const [editando, setEditando]         = useState(null)
+  const [modalCookie, setModalCookie] = useState(false)
+  const [modalIng, setModalIng]       = useState(false)
+  const [editando, setEditando]       = useState(null)
 
   const [formCookie, setFormCookie] = useState({ sabor: '', quantidade: '', minimo: 3 })
   const [formIng, setFormIng]       = useState({ ingrediente: '', quantidade: '' })
 
   const buscarCookies = useCallback(async () => {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('estoque_cookies')
       .select('id,sabor,quantidade,minimo,updated_at')
       .order('sabor')
-    setCookies(data || [])
+    if (!error) setCookies(data || [])
   }, [])
 
   const buscarIngredientes = useCallback(async () => {
@@ -39,7 +41,6 @@ export default function Estoque() {
 
   useEffect(() => { buscarCookies(); buscarIngredientes() }, [buscarCookies, buscarIngredientes])
 
-  // Realtime
   useEffect(() => {
     const ch = supabase.channel('estoque-rt')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'estoque_cookies' }, buscarCookies)
@@ -50,34 +51,48 @@ export default function Estoque() {
 
   async function salvarCookie(e) {
     e.preventDefault()
+    if (!formCookie.sabor) return
+    setSalvando(true)
     const payload = {
-      sabor: formCookie.sabor.trim(),
+      sabor:      formCookie.sabor,
       quantidade: Number(formCookie.quantidade),
-      minimo: Number(formCookie.minimo),
+      minimo:     Number(formCookie.minimo) || 3,
     }
+    let error
     if (editando?.id) {
-      await supabase.from('estoque_cookies').update(payload).eq('id', editando.id)
-      toast.success('Estoque atualizado!')
+      ;({ error } = await supabase.from('estoque_cookies').update(payload).eq('id', editando.id))
     } else {
-      await supabase.from('estoque_cookies').insert(payload)
-      toast.success('Cookie adicionado!')
+      ;({ error } = await supabase.from('estoque_cookies')
+        .upsert(payload, { onConflict: 'sabor' }))
     }
-    setModalCookie(false)
-    setEditando(null)
-    setFormCookie({ sabor: '', quantidade: '', minimo: 3 })
-    buscarCookies()
+    setSalvando(false)
+    if (error) {
+      toast.error('Erro ao salvar: ' + error.message)
+    } else {
+      toast.success(editando ? 'Estoque atualizado!' : 'Cookie adicionado!')
+      setModalCookie(false)
+      setEditando(null)
+      setFormCookie({ sabor: '', quantidade: '', minimo: 3 })
+      buscarCookies()
+    }
   }
 
   async function salvarIngrediente(e) {
     e.preventDefault()
-    await supabase.from('estoque').upsert(
+    setSalvando(true)
+    const { error } = await supabase.from('estoque').upsert(
       { ingrediente: formIng.ingrediente, quantidade: Number(formIng.quantidade) },
       { onConflict: 'ingrediente' }
     )
-    toast.success('Estoque salvo!')
-    setModalIng(false)
-    setFormIng({ ingrediente: '', quantidade: '' })
-    buscarIngredientes()
+    setSalvando(false)
+    if (error) {
+      toast.error('Erro ao salvar: ' + error.message)
+    } else {
+      toast.success('Ingrediente atualizado!')
+      setModalIng(false)
+      setFormIng({ ingrediente: '', quantidade: '' })
+      buscarIngredientes()
+    }
   }
 
   function abrirEditCookie(c) {
@@ -94,66 +109,84 @@ export default function Estoque() {
   }
 
   const alertasCookies = cookies.filter(c => c.quantidade <= (c.minimo || 3))
-  const alertasIng     = ingredientes.filter(i => {
+  const alertasIng = ingredientes.filter(i => {
     const ref = INGREDIENTES.find(x => x.label.toLowerCase() === i.ingrediente.toLowerCase())
     return ref ? i.quantidade <= ref.estoque_minimo * 0.2 : false
   })
 
+  const fieldCls = 'field mt-1'
+
   return (
     <div className="max-w-4xl mx-auto">
+
+      {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold" style={{ color: '#1C1917' }}>Estoque</h1>
-          <p className="text-sm mt-0.5" style={{ color: '#78716C' }}>Cookies prontos e ingredientes</p>
+          <p className="section-title mb-1">Inventário</p>
+          <h1 className="font-display text-2xl" style={{ color: 'var(--text-hi)' }}>Estoque</h1>
         </div>
         <button
-          onClick={() => aba === 'cookies' ? (setEditando(null), setFormCookie({ sabor: '', quantidade: '', minimo: 3 }), setModalCookie(true)) : (setFormIng({ ingrediente: '', quantidade: '' }), setModalIng(true))}
-          className="px-4 py-2 rounded-xl text-white text-sm font-semibold transition hover:opacity-80"
-          style={{ background: '#C2410C' }}
-        >+ Adicionar</button>
+          className="btn btn-primary"
+          onClick={() => {
+            if (aba === 'cookies') {
+              setEditando(null)
+              setFormCookie({ sabor: '', quantidade: '', minimo: 3 })
+              setModalCookie(true)
+            } else {
+              setFormIng({ ingrediente: '', quantidade: '' })
+              setModalIng(true)
+            }
+          }}
+        >
+          + Adicionar
+        </button>
       </div>
 
       {/* Alertas */}
       {aba === 'cookies' && alertasCookies.length > 0 && (
         <div className="rounded-xl p-4 mb-4" style={{ background: '#FEF3C7', border: '1px solid #FDE68A' }}>
-          <p className="font-semibold text-sm mb-1" style={{ color: '#92400E' }}>⚠️ Repor Estoque de Cookies</p>
-          <p className="text-xs" style={{ color: '#92400E' }}>{alertasCookies.map(c => `${c.sabor} (${c.quantidade} un)`).join(' · ')}</p>
+          <p className="font-semibold text-sm mb-1" style={{ color: '#92400E' }}>Repor Estoque</p>
+          <p className="text-xs" style={{ color: '#92400E' }}>
+            {alertasCookies.map(c => `${c.sabor} (${c.quantidade} un)`).join(' · ')}
+          </p>
         </div>
       )}
       {aba === 'ingredientes' && alertasIng.length > 0 && (
         <div className="rounded-xl p-4 mb-4" style={{ background: '#FEE2E2', border: '1px solid #FECACA' }}>
-          <p className="font-semibold text-sm mb-1" style={{ color: '#DC2626' }}>🔴 Ingredientes Críticos</p>
-          <p className="text-xs" style={{ color: '#DC2626' }}>{alertasIng.map(i => i.ingrediente).join(' · ')}</p>
+          <p className="font-semibold text-sm mb-1" style={{ color: 'var(--danger)' }}>Ingredientes Críticos</p>
+          <p className="text-xs" style={{ color: 'var(--danger)' }}>
+            {alertasIng.map(i => i.ingrediente).join(' · ')}
+          </p>
         </div>
       )}
 
       {/* Abas */}
-      <div className="flex gap-1 mb-4 bg-white rounded-xl p-1 w-fit" style={{ border: '1px solid #E5E0D9' }}>
-        {[['cookies','🍪 Cookies Prontos'],['ingredientes','🧂 Ingredientes']].map(([id, label]) => (
+      <div className="flex gap-1 mb-4 p-1 rounded-xl w-fit" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+        {[['cookies', 'Cookies Prontos'], ['ingredientes', 'Ingredientes']].map(([id, label]) => (
           <button
             key={id}
             onClick={() => setAba(id)}
-            className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all ${
-              aba === id ? 'text-white' : 'text-stone-500 hover:text-stone-800'
-            }`}
-            style={aba === id ? { background: '#C2410C' } : {}}
+            className="px-4 py-1.5 rounded-lg text-sm font-medium transition-all"
+            style={aba === id
+              ? { background: 'var(--brand)', color: '#fff' }
+              : { color: 'var(--text-md)' }
+            }
           >{label}</button>
         ))}
       </div>
 
       {loading ? (
-        <div className="flex justify-center py-16">
-          <div className="w-6 h-6 border-2 border-t-transparent rounded-full animate-spin" style={{ borderColor: '#C2410C', borderTopColor: 'transparent' }} />
-        </div>
+        <div className="flex justify-center py-16"><div className="spinner" /></div>
       ) : (
         <AnimatePresence mode="wait">
+
+          {/* ABA COOKIES */}
           {aba === 'cookies' && (
             <motion.div key="cookies" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
               {cookies.length === 0 ? (
                 <div className="text-center py-16">
-                  <p className="text-4xl mb-3">🍪</p>
-                  <p className="font-semibold" style={{ color: '#1C1917' }}>Nenhum cookie cadastrado</p>
-                  <p className="text-sm mt-1" style={{ color: '#78716C' }}>Adicione os cookies que você produziu.</p>
+                  <p className="font-semibold" style={{ color: 'var(--text-hi)' }}>Nenhum cookie cadastrado</p>
+                  <p className="text-sm mt-1" style={{ color: 'var(--text-lo)' }}>Adicione os cookies que você produziu.</p>
                 </div>
               ) : (
                 <div className="grid gap-2">
@@ -162,23 +195,25 @@ export default function Estoque() {
                       key={c.id}
                       layout
                       className="flex items-center justify-between p-4 rounded-xl"
-                      style={{ background: '#fff', border: `1px solid ${c.quantidade <= (c.minimo || 3) ? '#FDE68A' : '#E5E0D9'}` }}
+                      style={{
+                        background: 'var(--surface)',
+                        border: `1px solid ${c.quantidade <= (c.minimo || 3) ? '#FDE68A' : 'var(--border)'}`,
+                      }}
                     >
-                      <div className="flex items-center gap-3">
-                        <span className="text-xl">🍪</span>
-                        <div>
-                          <p className="font-medium text-sm" style={{ color: '#1C1917' }}>{c.sabor}</p>
-                          <p className="text-xs" style={{ color: '#78716C' }}>Mínimo: {c.minimo || 3} un</p>
-                        </div>
+                      <div>
+                        <p className="font-medium text-sm" style={{ color: 'var(--text-hi)' }}>{c.sabor}</p>
+                        <p className="text-xs" style={{ color: 'var(--text-lo)' }}>mín. {c.minimo || 3} un</p>
                       </div>
                       <div className="flex items-center gap-3">
                         {c.quantidade <= (c.minimo || 3) && (
-                          <span className="text-xs px-2 py-0.5 rounded-full font-semibold" style={{ background: '#FEF3C7', color: '#92400E' }}>Repor</span>
+                          <span className="badge badge-orange">Repor</span>
                         )}
-                        <span className="text-lg font-bold" style={{ color: c.quantidade <= (c.minimo || 3) ? '#C2410C' : '#1C1917' }}>{c.quantidade}</span>
-                        <span className="text-xs" style={{ color: '#78716C' }}>un</span>
-                        <button onClick={() => abrirEditCookie(c)} className="p-1.5 rounded hover:bg-stone-100 transition text-xs" style={{ color: '#78716C' }}>✏️</button>
-                        <button onClick={() => deletarCookie(c.id)} className="p-1.5 rounded hover:bg-red-50 transition text-xs">🗑️</button>
+                        <span className="text-lg font-bold" style={{ color: c.quantidade <= (c.minimo || 3) ? 'var(--brand)' : 'var(--text-hi)' }}>
+                          {c.quantidade}
+                        </span>
+                        <span className="text-xs" style={{ color: 'var(--text-lo)' }}>un</span>
+                        <button onClick={() => abrirEditCookie(c)} className="btn btn-ghost btn-sm" style={{ color: 'var(--text-lo)' }}>Editar</button>
+                        <button onClick={() => deletarCookie(c.id)} className="btn btn-ghost btn-sm" style={{ color: 'var(--danger)' }}>Remover</button>
                       </div>
                     </motion.div>
                   ))}
@@ -187,124 +222,173 @@ export default function Estoque() {
             </motion.div>
           )}
 
+          {/* ABA INGREDIENTES */}
           {aba === 'ingredientes' && (
             <motion.div key="ing" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
               <div className="grid gap-2">
                 {ingredientes.map(i => {
-                  const ref = INGREDIENTES.find(x => x.label.toLowerCase() === i.ingrediente.toLowerCase())
+                  const ref  = INGREDIENTES.find(x => x.label.toLowerCase() === i.ingrediente.toLowerCase())
                   const baixo = ref ? i.quantidade <= ref.estoque_minimo * 0.2 : false
                   return (
                     <div
                       key={i.id}
                       className="flex items-center justify-between p-3 rounded-xl"
-                      style={{ background: '#fff', border: `1px solid ${baixo ? '#FECACA' : '#E5E0D9'}` }}
+                      style={{ background: 'var(--surface)', border: `1px solid ${baixo ? '#FECACA' : 'var(--border)'}` }}
                     >
-                      <span className="text-sm font-medium" style={{ color: '#1C1917' }}>{i.ingrediente}</span>
+                      <span className="text-sm font-medium" style={{ color: 'var(--text-hi)' }}>{i.ingrediente}</span>
                       <div className="flex items-center gap-2">
-                        {baixo && <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: '#FEE2E2', color: '#DC2626' }}>Crítico</span>}
-                        <span className="font-bold text-sm" style={{ color: baixo ? '#DC2626' : '#1C1917' }}>{i.quantidade}g</span>
+                        {baixo && <span className="badge badge-red">Crítico</span>}
+                        <span className="font-bold text-sm" style={{ color: baixo ? 'var(--danger)' : 'var(--text-hi)' }}>
+                          {i.quantidade}{ref?.unit || 'g'}
+                        </span>
                         <button
                           onClick={() => { setFormIng({ ingrediente: i.ingrediente, quantidade: i.quantidade }); setModalIng(true) }}
-                          className="p-1 rounded hover:bg-stone-100 transition text-xs"
-                        >✏️</button>
+                          className="btn btn-ghost btn-sm"
+                          style={{ color: 'var(--text-lo)' }}
+                        >Editar</button>
                       </div>
                     </div>
                   )
                 })}
+                {ingredientes.length === 0 && (
+                  <p className="text-center py-12 text-sm" style={{ color: 'var(--text-lo)' }}>Nenhum ingrediente cadastrado ainda.</p>
+                )}
               </div>
             </motion.div>
           )}
+
         </AnimatePresence>
       )}
 
-      {/* Modal Cookies */}
+      {/* ─── Modal Cookie ─── */}
       <AnimatePresence>
         {modalCookie && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4"
-            style={{ background: 'rgba(0,0,0,0.5)' }} onClick={() => setModalCookie(false)}
+            style={{ background: 'rgba(0,0,0,.5)' }}
+            onClick={() => setModalCookie(false)}
           >
             <motion.form
-              initial={{ y: 40 }} animate={{ y: 0 }} exit={{ y: 40 }}
+              initial={{ y: 32, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 32, opacity: 0 }}
+              transition={{ type: 'spring', damping: 26, stiffness: 320 }}
               className="w-full max-w-sm rounded-2xl p-6"
-              style={{ background: '#fff' }}
+              style={{ background: 'var(--surface)' }}
               onClick={e => e.stopPropagation()}
               onSubmit={salvarCookie}
             >
-              <h2 className="font-bold text-lg mb-4" style={{ color: '#1C1917' }}>{editando ? 'Editar Cookie' : 'Adicionar Cookie'}</h2>
-              <div className="space-y-3">
+              <h2 className="font-display text-xl mb-5" style={{ color: 'var(--text-hi)' }}>
+                {editando ? 'Editar Cookie' : 'Adicionar Cookie'}
+              </h2>
+
+              <div className="space-y-4">
                 <div>
-                  <label className="text-xs font-semibold" style={{ color: '#78716C' }}>Sabor</label>
-                  <input value={formCookie.sabor} onChange={e => setFormCookie(p => ({ ...p, sabor: e.target.value }))}
-                    className="w-full mt-1 px-3 py-2 rounded-lg border text-sm"
-                    style={{ borderColor: '#E5E0D9' }} placeholder="Ex: Red Velvet" required />
+                  <label className="label">Sabor</label>
+                  <select
+                    className={fieldCls}
+                    value={formCookie.sabor}
+                    onChange={e => setFormCookie(p => ({ ...p, sabor: e.target.value }))}
+                    required
+                    disabled={!!editando}
+                  >
+                    <option value="">Selecionar sabor...</option>
+                    {SABORES_LISTA.map(s => (
+                      <option key={s} value={s}>{s}</option>
+                    ))}
+                  </select>
                 </div>
+
                 <div>
-                  <label className="text-xs font-semibold" style={{ color: '#78716C' }}>Quantidade (unidades)</label>
-                  <input type="number" min="0" value={formCookie.quantidade} onChange={e => setFormCookie(p => ({ ...p, quantidade: e.target.value }))}
-                    className="w-full mt-1 px-3 py-2 rounded-lg border text-sm"
-                    style={{ borderColor: '#E5E0D9' }} required />
+                  <label className="label">Quantidade (unidades)</label>
+                  <input
+                    type="number" min="0"
+                    className={fieldCls}
+                    value={formCookie.quantidade}
+                    onChange={e => setFormCookie(p => ({ ...p, quantidade: e.target.value }))}
+                    required
+                  />
                 </div>
+
                 <div>
-                  <label className="text-xs font-semibold" style={{ color: '#78716C' }}>Alerta de mínimo (unidades)</label>
-                  <input type="number" min="0" value={formCookie.minimo} onChange={e => setFormCookie(p => ({ ...p, minimo: e.target.value }))}
-                    className="w-full mt-1 px-3 py-2 rounded-lg border text-sm"
-                    style={{ borderColor: '#E5E0D9' }} />
+                  <label className="label">Alerta de mínimo (unidades)</label>
+                  <input
+                    type="number" min="0"
+                    className={fieldCls}
+                    value={formCookie.minimo}
+                    onChange={e => setFormCookie(p => ({ ...p, minimo: e.target.value }))}
+                  />
                 </div>
               </div>
-              <div className="flex gap-2 mt-5">
-                <button type="button" onClick={() => setModalCookie(false)}
-                  className="flex-1 py-2.5 rounded-xl border text-sm" style={{ borderColor: '#E5E0D9', color: '#78716C' }}>Cancelar</button>
-                <button type="submit"
-                  className="flex-1 py-2.5 rounded-xl text-white text-sm font-semibold" style={{ background: '#C2410C' }}>Salvar</button>
+
+              <div className="flex gap-2 mt-6">
+                <button type="button" onClick={() => setModalCookie(false)} className="btn btn-secondary flex-1">Cancelar</button>
+                <button type="submit" disabled={salvando} className="btn btn-primary flex-1">
+                  {salvando ? <span className="spinner" style={{ width: 16, height: 16 }} /> : 'Salvar'}
+                </button>
               </div>
             </motion.form>
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* Modal Ingrediente */}
+      {/* ─── Modal Ingrediente ─── */}
       <AnimatePresence>
         {modalIng && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4"
-            style={{ background: 'rgba(0,0,0,0.5)' }} onClick={() => setModalIng(false)}
+            style={{ background: 'rgba(0,0,0,.5)' }}
+            onClick={() => setModalIng(false)}
           >
             <motion.form
-              initial={{ y: 40 }} animate={{ y: 0 }} exit={{ y: 40 }}
+              initial={{ y: 32, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 32, opacity: 0 }}
+              transition={{ type: 'spring', damping: 26, stiffness: 320 }}
               className="w-full max-w-sm rounded-2xl p-6"
-              style={{ background: '#fff' }}
+              style={{ background: 'var(--surface)' }}
               onClick={e => e.stopPropagation()}
               onSubmit={salvarIngrediente}
             >
-              <h2 className="font-bold text-lg mb-4" style={{ color: '#1C1917' }}>Atualizar Ingrediente</h2>
-              <div className="space-y-3">
+              <h2 className="font-display text-xl mb-5" style={{ color: 'var(--text-hi)' }}>Atualizar Ingrediente</h2>
+
+              <div className="space-y-4">
                 <div>
-                  <label className="text-xs font-semibold" style={{ color: '#78716C' }}>Ingrediente</label>
-                  <select value={formIng.ingrediente} onChange={e => setFormIng(p => ({ ...p, ingrediente: e.target.value }))}
-                    className="w-full mt-1 px-3 py-2 rounded-lg border text-sm"
-                    style={{ borderColor: '#E5E0D9' }} required>
-                    <option value="">Selecionar...</option>
-                    {INGREDIENTES.map(i => <option key={i.id} value={i.label}>{i.label}</option>)}
+                  <label className="label">Ingrediente</label>
+                  <select
+                    className={fieldCls}
+                    value={formIng.ingrediente}
+                    onChange={e => setFormIng(p => ({ ...p, ingrediente: e.target.value }))}
+                    required
+                  >
+                    <option value="">Selecionar ingrediente...</option>
+                    {INGREDIENTES.map(i => (
+                      <option key={i.id} value={i.label}>{i.label}</option>
+                    ))}
                   </select>
                 </div>
+
                 <div>
-                  <label className="text-xs font-semibold" style={{ color: '#78716C' }}>Quantidade (g/ml)</label>
-                  <input type="number" min="0" value={formIng.quantidade} onChange={e => setFormIng(p => ({ ...p, quantidade: e.target.value }))}
-                    className="w-full mt-1 px-3 py-2 rounded-lg border text-sm"
-                    style={{ borderColor: '#E5E0D9' }} required />
+                  <label className="label">Quantidade (g / ml)</label>
+                  <input
+                    type="number" min="0"
+                    className={fieldCls}
+                    value={formIng.quantidade}
+                    onChange={e => setFormIng(p => ({ ...p, quantidade: e.target.value }))}
+                    required
+                  />
                 </div>
               </div>
-              <div className="flex gap-2 mt-5">
-                <button type="button" onClick={() => setModalIng(false)}
-                  className="flex-1 py-2.5 rounded-xl border text-sm" style={{ borderColor: '#E5E0D9', color: '#78716C' }}>Cancelar</button>
-                <button type="submit"
-                  className="flex-1 py-2.5 rounded-xl text-white text-sm font-semibold" style={{ background: '#C2410C' }}>Salvar</button>
+
+              <div className="flex gap-2 mt-6">
+                <button type="button" onClick={() => setModalIng(false)} className="btn btn-secondary flex-1">Cancelar</button>
+                <button type="submit" disabled={salvando} className="btn btn-primary flex-1">
+                  {salvando ? <span className="spinner" style={{ width: 16, height: 16 }} /> : 'Salvar'}
+                </button>
               </div>
             </motion.form>
           </motion.div>
         )}
       </AnimatePresence>
+
     </div>
   )
 }
