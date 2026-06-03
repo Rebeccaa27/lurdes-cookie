@@ -46,9 +46,7 @@ export function useVendas(mes, ano) {
   useEffect(() => {
     const channel = supabase
       .channel(`vendas-rt-${mes}-${ano}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'vendas' }, () => {
-        fetchVendas()
-      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'vendas' }, () => fetchVendas())
       .subscribe()
     return () => { supabase.removeChannel(channel) }
   }, [fetchVendas, mes, ano])
@@ -56,7 +54,7 @@ export function useVendas(mes, ano) {
   return { vendas, loading, error, refetch: fetchVendas }
 }
 
-// ── Clientes (nomes unicos normalizados das vendas) ────────────────────────
+// ── Clientes ──────────────────────────────────────────────────────────────────
 function normNomeCliente(n) {
   return (n || '').trim().toLowerCase().replace(/\b\w/g, c => c.toUpperCase())
 }
@@ -67,11 +65,7 @@ export function useClientes() {
 
   const fetchClientes = useCallback(async () => {
     setLoading(true)
-    const { data } = await supabase
-      .from('vendas')
-      .select('cliente')
-      .order('cliente')
-    // FIX: normaliza nome antes de deduplicar para evitar "rebeca" e "Rebeca" separados
+    const { data } = await supabase.from('vendas').select('cliente').order('cliente')
     const seen = new Set()
     const unicos = []
     ;(data || []).forEach(v => {
@@ -111,7 +105,7 @@ export function useEstoque() {
   return { estoque, estoqueMap, loading, refetch: fetchEstoque }
 }
 
-// ── Custos Operacionais ───────────────────────────────────────────────────────
+// ── Custos ────────────────────────────────────────────────────────────────────
 export function useCustos(mes, ano) {
   const [custos, setCustos]   = useState([])
   const [loading, setLoading] = useState(true)
@@ -131,7 +125,75 @@ export function useCustos(mes, ano) {
   return { custos, loading, refetch: fetchCustos }
 }
 
-// ── Mes atual state ───────────────────────────────────────────────────────────
+// ── Conversas (Chat) ──────────────────────────────────────────────────────────
+export function useConversas(filtro = 'todas') {
+  const [conversas, setConversas] = useState([])
+  const [loading, setLoading]     = useState(true)
+
+  const fetchConversas = useCallback(async () => {
+    setLoading(true)
+    let q = supabase
+      .from('conversas')
+      .select('*, mensagens(id, texto, criado_em, origem)')
+      .order('atualizado_em', { ascending: false })
+
+    if (filtro === 'nao_lidas')  q = q.eq('nao_lida', true)
+    if (filtro === 'automacao')  q = q.eq('status', 'automacao')
+    if (filtro === 'finalizadas') q = q.eq('status', 'finalizada')
+
+    const { data } = await q
+    setConversas(data || [])
+    setLoading(false)
+  }, [filtro])
+
+  useEffect(() => { fetchConversas() }, [fetchConversas])
+
+  useEffect(() => {
+    const ch = supabase
+      .channel('conversas-rt')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'conversas' }, fetchConversas)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'mensagens' }, fetchConversas)
+      .subscribe()
+    return () => { supabase.removeChannel(ch) }
+  }, [fetchConversas])
+
+  return { conversas, loading, refetch: fetchConversas }
+}
+
+export function useMensagens(conversaId) {
+  const [mensagens, setMensagens] = useState([])
+  const [loading, setLoading]     = useState(true)
+
+  const fetchMensagens = useCallback(async () => {
+    if (!conversaId) { setMensagens([]); setLoading(false); return }
+    setLoading(true)
+    const { data } = await supabase
+      .from('mensagens')
+      .select('*')
+      .eq('conversa_id', conversaId)
+      .order('criado_em', { ascending: true })
+    setMensagens(data || [])
+    setLoading(false)
+  }, [conversaId])
+
+  useEffect(() => { fetchMensagens() }, [fetchMensagens])
+
+  useEffect(() => {
+    if (!conversaId) return
+    const ch = supabase
+      .channel(`mensagens-${conversaId}`)
+      .on('postgres_changes', {
+        event: '*', schema: 'public', table: 'mensagens',
+        filter: `conversa_id=eq.${conversaId}`
+      }, fetchMensagens)
+      .subscribe()
+    return () => { supabase.removeChannel(ch) }
+  }, [conversaId, fetchMensagens])
+
+  return { mensagens, loading, refetch: fetchMensagens }
+}
+
+// ── Helpers de estado ─────────────────────────────────────────────────────────
 export function useMesAtual() {
   const now = new Date()
   const [mes, setMes] = useState(now.getMonth())

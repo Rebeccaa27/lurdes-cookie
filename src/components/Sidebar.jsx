@@ -5,6 +5,7 @@ const NAV = [
   { to: '/',            label: 'Dashboard'   },
   { to: '/vendas',      label: 'Vendas'      },
   { to: '/crm',         label: 'CRM'         },
+  { to: '/chat',        label: 'Chat'        },
   { to: '/financeiro',  label: 'Financeiro'  },
   { to: '/estoque',     label: 'Estoque'     },
   { to: '/calculadora', label: 'Calculadora' },

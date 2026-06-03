@@ -17,6 +17,7 @@ import Financeiro from './pages/Financeiro'
 import Sazonais   from './pages/Sazonais'
 import Config     from './pages/Config'
 import Calculadora from './pages/Calculadora'
+import Chat       from './pages/Chat'
 
 function ProtectedLayout() {
   const [mobileOpen, setMobileOpen] = useState(false)
@@ -44,6 +45,7 @@ function ProtectedLayout() {
               <Route path="/sazonais"    element={<Sazonais />}   />
               <Route path="/calculadora" element={<Calculadora />} />
               <Route path="/config"      element={<Config />}     />
+              <Route path="/chat"        element={<Chat />}       />
               <Route path="*"            element={<Navigate to="/" replace />} />
             </Routes>
           </AnimatePresence>

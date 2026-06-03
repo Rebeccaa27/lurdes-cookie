@@ -3,10 +3,9 @@
 @tailwind utilities;
 
 /* ─────────────────────────────────────────────────────
-   GOOGLE FONTS
-   Plus Jakarta Sans (corpo) + DM Serif Display (títulos)
+   GOOGLE FONTS — Inter (corpo) + DM Serif Display (títulos)
 ───────────────────────────────────────────────────── */
-@import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=DM+Serif+Display:ital@0;1&display=swap');
 
 /* ─────────────────────────────────────────────────────
    TOKENS
@@ -19,12 +18,12 @@
   --text-hi:   #1E2D22;
   --text-md:   #445244;
   --text-lo:   #7A8C78;
-  --brand:     #A0522D;   /* marrom claro -- botoes */
-  --brand-hv:  #8B4513;   /* marrom hover */
+  --brand:     #A0522D;
+  --brand-hv:  #8B4513;
   --success:   #2D6A4F;
   --warn:      #8B6914;
   --danger:    #A63228;
-  --sidebar:   #2C1A0E;   /* marrom escuro -- sidebar */
+  --sidebar:   #2C1A0E;
 }
 
 /* ─────────────────────────────────────────────────────
@@ -43,7 +42,7 @@ html {
 }
 
 body {
-  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-family: 'Inter', system-ui, sans-serif;
   font-size: 0.9375rem;
   background: var(--bg);
   color: var(--text-hi);
@@ -195,6 +194,8 @@ h1, h2, h3 {
 .badge-orange { background: #FEF3C7; color: #7C5B0E; }
 .badge-red    { background: #FDECEA; color: #8B2020; }
 .badge-gray   { background: #EBE8E1; color: #5C5A50; }
+.badge-blue   { background: #DBEAFE; color: #1E40AF; }
+.badge-purple { background: #EDE9FE; color: #5B21B6; }
 
 /* ─────────────────────────────────────────────────────
    SKELETON
@@ -289,6 +290,7 @@ h1, h2, h3 {
 .sidebar-link {
   display: flex;
   align-items: center;
+  gap: .5rem;
   padding: .5rem .75rem;
   border-radius: 10px;
   font-size: .9375rem;
@@ -327,4 +329,70 @@ h1, h2, h3 {
 .sidebar-logout:hover {
   color: #F5EDE4;
   background: rgba(255,255,255,.07);
+}
+
+/* ─────────────────────────────────────────────────────
+   CHAT — layout específico
+───────────────────────────────────────────────────── */
+.chat-layout {
+  display: flex;
+  height: calc(100vh - 56px);
+  overflow: hidden;
+  margin: -1rem -1rem -1rem -1rem;
+}
+@media (min-width: 1024px) {
+  .chat-layout { margin: -1.5rem -1.5rem -1.5rem -1.5rem; }
+}
+
+.chat-list {
+  width: 320px;
+  flex-shrink: 0;
+  border-right: 1.5px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  overflow: hidden;
+}
+
+.chat-window {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--bg);
+}
+
+.chat-bubble-bot {
+  align-self: flex-start;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text-hi);
+  padding: .5rem .875rem;
+  border-radius: 0 12px 12px 12px;
+  max-width: 75%;
+  font-size: .9rem;
+  line-height: 1.5;
+}
+
+.chat-bubble-manual {
+  align-self: flex-end;
+  background: var(--brand);
+  color: #fff;
+  padding: .5rem .875rem;
+  border-radius: 12px 0 12px 12px;
+  max-width: 75%;
+  font-size: .9rem;
+  line-height: 1.5;
+}
+
+.chat-bubble-cliente {
+  align-self: flex-start;
+  background: #E8F5E9;
+  border: 1px solid #C8E6C9;
+  color: #1B5E20;
+  padding: .5rem .875rem;
+  border-radius: 0 12px 12px 12px;
+  max-width: 75%;
+  font-size: .9rem;
+  line-height: 1.5;
 }
