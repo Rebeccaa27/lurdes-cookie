@@ -38,23 +38,33 @@ function avatarColor(nome) {
 }
 
 /**
- * Recalcula todas as vendas do cliente no mês/ano e sincroniza crm_status:
- *  - se todas as vendas forem pagas  → pago: true
- *  - se qualquer venda for fiado     → pago: false
- * Isso garante que o CRM reflete o estado real das vendas.
+ * Recalcula vendas do cliente no mes/ano e sincroniza crm_status.
+ * FIX: usa eq('cliente', nomeNorm) com nome ja normalizado (nao ilike sem %)
+ * FIX: se nao houver mais vendas no mes, remove o registro do crm_status
+ *      para nao deixar cliente fantasma no CRM.
  */
-async function syncCrmStatus(nomeKey, mes, ano) {
+async function syncCrmStatus(nomeKey, nomeNorm, mes, ano) {
   const start = `${ano}-${String(mes + 1).padStart(2, '0')}-01`
   const end   = new Date(ano, mes + 1, 1).toISOString().slice(0, 10)
 
+  // Busca usando o nome normalizado exato (Rebeca, Larissa, etc)
   const { data: vendasDoCliente } = await supabase
     .from('vendas')
     .select('pag')
     .gte('data', start)
     .lt('data', end)
-    .ilike('cliente', nomeKey.trim())
+    .eq('cliente', nomeNorm)
 
-  if (!vendasDoCliente || vendasDoCliente.length === 0) return
+  // Se nao ha mais vendas: remove do CRM para nao ficar cliente fantasma
+  if (!vendasDoCliente || vendasDoCliente.length === 0) {
+    await supabase
+      .from('crm_status')
+      .delete()
+      .eq('cliente_key', nomeKey)
+      .eq('mes', mes + 1)
+      .eq('ano', ano)
+    return
+  }
 
   const todosPagos = vendasDoCliente.every(v => v.pag === 'pago')
 
@@ -96,9 +106,9 @@ export default function Vendas() {
     if (!form.cliente.trim()) { toast('Informe o nome do cliente', 'error'); return }
     setSaving(true)
 
-    const nomeNorm = normNome(form.cliente)
-    const key      = normKey(nomeNorm)
-    const dataVenda = form.data          // 'YYYY-MM-DD'
+    const nomeNorm  = normNome(form.cliente)
+    const key       = normKey(nomeNorm)
+    const dataVenda = form.data
     const mesVenda  = new Date(dataVenda + 'T00:00:00').getMonth()
     const anoVenda  = new Date(dataVenda + 'T00:00:00').getFullYear()
 
@@ -113,8 +123,7 @@ export default function Vendas() {
 
     if (error) { setSaving(false); toast(error.message, 'error'); return }
 
-    // Sincroniza CRM: se pago -> recebido; se fiado -> devendo
-    await syncCrmStatus(key, mesVenda, anoVenda)
+    await syncCrmStatus(key, nomeNorm, mesVenda, anoVenda)
 
     setSaving(false)
     toast('Venda registrada')
@@ -123,14 +132,14 @@ export default function Vendas() {
   }
 
   async function handleToggle(v) {
-    const novoPag = v.pag === 'pago' ? 'fiado' : 'pago'
+    const novoPag  = v.pag === 'pago' ? 'fiado' : 'pago'
     const { error } = await supabase.from('vendas').update({ pag: novoPag }).eq('id', v.id)
     if (error) { toast(error.message, 'error'); return }
 
-    // Re-sincroniza CRM com o novo status
+    const nomeNorm = normNome(v.cliente)
     const mesVenda = new Date(v.data + 'T00:00:00').getMonth()
     const anoVenda = new Date(v.data + 'T00:00:00').getFullYear()
-    await syncCrmStatus(normKey(v.cliente), mesVenda, anoVenda)
+    await syncCrmStatus(normKey(nomeNorm), nomeNorm, mesVenda, anoVenda)
 
     toast(novoPag === 'pago' ? 'Marcado como pago' : 'Marcado como fiado')
     refetch()
@@ -142,9 +151,11 @@ export default function Vendas() {
     await supabase.from('vendas').delete().eq('id', id)
 
     if (venda) {
+      const nomeNorm = normNome(venda.cliente)
       const mesVenda = new Date(venda.data + 'T00:00:00').getMonth()
       const anoVenda = new Date(venda.data + 'T00:00:00').getFullYear()
-      await syncCrmStatus(normKey(venda.cliente), mesVenda, anoVenda)
+      // FIX: passa nomeNorm para busca exata; se era a ultima venda, deleta do CRM
+      await syncCrmStatus(normKey(nomeNorm), nomeNorm, mesVenda, anoVenda)
     }
 
     refetch()
@@ -155,11 +166,10 @@ export default function Vendas() {
     const vendasFiado = vendas.filter(v => normNome(v.cliente) === nomeCliente && v.pag === 'fiado')
     await Promise.all(vendasFiado.map(v => supabase.from('vendas').update({ pag: 'pago' }).eq('id', v.id)))
 
-    // Sincroniza CRM -> todas as vendas viram pago, vai para Recebido
     if (vendasFiado.length > 0) {
       const mesVenda = new Date(vendasFiado[0].data + 'T00:00:00').getMonth()
       const anoVenda = new Date(vendasFiado[0].data + 'T00:00:00').getFullYear()
-      await syncCrmStatus(normKey(nomeCliente), mesVenda, anoVenda)
+      await syncCrmStatus(normKey(nomeCliente), nomeCliente, mesVenda, anoVenda)
     }
 
     toast('Tudo marcado como pago!')
@@ -191,7 +201,6 @@ export default function Vendas() {
   return (
     <div className="px-4 py-6 lg:py-8 max-w-5xl mx-auto">
 
-      {/* Top bar */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
         <h1 className="font-display text-3xl" style={{ color: 'var(--text-hi)' }}>Vendas</h1>
         <div className="flex items-center gap-2 flex-wrap">
@@ -202,7 +211,6 @@ export default function Vendas() {
         </div>
       </div>
 
-      {/* KPIs */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
         {[
           { label: 'Total do mes',  value: formatBRL(totalMes),   color: 'var(--text-hi)'  },
@@ -220,7 +228,6 @@ export default function Vendas() {
         ))}
       </div>
 
-      {/* Lista de clientes */}
       <div className="card p-0 overflow-hidden">
         {loading ? (
           <div className="p-5 space-y-2.5">
@@ -269,7 +276,7 @@ export default function Vendas() {
         )}
       </div>
 
-      {/* ── Modal Cliente ─────────────────────────────────────────────── */}
+      {/* Modal Cliente */}
       <AnimatePresence>
         {clienteModal && (
           <motion.div
@@ -367,7 +374,7 @@ export default function Vendas() {
         )}
       </AnimatePresence>
 
-      {/* ── Modal Nova Venda ─────────────────────────────────────────────── */}
+      {/* Modal Nova Venda */}
       <AnimatePresence>
         {modalOpen && (
           <motion.div
