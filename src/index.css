@@ -3,22 +3,28 @@
 @tailwind utilities;
 
 /* ─────────────────────────────────────────────────────
-   TOKENS
+   GOOGLE FONTS — Organic Green
+   Plus Jakarta Sans (corpo) + DM Serif Display (títulos)
+───────────────────────────────────────────────────── */
+@import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
+
+/* ─────────────────────────────────────────────────────
+   TOKENS — Organic Green
 ───────────────────────────────────────────────────── */
 :root {
-  --bg:        #F7F3EE;
-  --surface:   #FFFFFF;
-  --border:    #E4DDD4;
-  --border-hv: #CFC7BC;
-  --text-hi:   #1C1916;
-  --text-md:   #5C5249;
-  --text-lo:   #9C9189;
-  --brand:     #B5451B;
-  --brand-hv:  #9A3A16;
-  --success:   #1A6640;
-  --warn:      #92450A;
-  --danger:    #B91C1C;
-  --sidebar:   #130F0D;
+  --bg:        #F0EDE6;
+  --surface:   #FAF8F4;
+  --border:    #D6D0C4;
+  --border-hv: #B8B09E;
+  --text-hi:   #1E2D22;
+  --text-md:   #445244;
+  --text-lo:   #7A8C78;
+  --brand:     #4A7C59;
+  --brand-hv:  #3A6347;
+  --success:   #2D6A4F;
+  --warn:      #8B6914;
+  --danger:    #A63228;
+  --sidebar:   #1E2D22;
 }
 
 /* ─────────────────────────────────────────────────────
@@ -41,21 +47,32 @@ body {
   font-size: 0.9375rem;
   background: var(--bg);
   color: var(--text-hi);
-  line-height: 1.55;
+  line-height: 1.6;
+}
+
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background-image: radial-gradient(circle, rgba(74,124,89,.06) 1px, transparent 1px);
+  background-size: 22px 22px;
 }
 
 /* ─────────────────────────────────────────────────────
-   TIPOGRAFIA
+   TIPOGRAFIA — DM Serif Display nos títulos
 ───────────────────────────────────────────────────── */
 .font-display {
-  font-family: 'Bricolage Grotesque', 'Plus Jakarta Sans', sans-serif;
+  font-family: 'DM Serif Display', Georgia, serif;
   font-optical-sizing: auto;
+  letter-spacing: -0.01em;
 }
 
 h1, h2, h3 {
-  font-family: 'Bricolage Grotesque', 'Plus Jakarta Sans', sans-serif;
-  font-optical-sizing: auto;
+  font-family: 'DM Serif Display', Georgia, serif;
   line-height: 1.2;
+  letter-spacing: -0.01em;
 }
 
 /* ─────────────────────────────────────────────────────
@@ -63,7 +80,7 @@ h1, h2, h3 {
 ───────────────────────────────────────────────────── */
 ::-webkit-scrollbar { width: 4px; height: 4px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: var(--border); border-radius: 99px; }
+::-webkit-scrollbar-thumb { background: var(--brand); border-radius: 99px; opacity: .5; }
 
 /* ─────────────────────────────────────────────────────
    FOCUS
@@ -71,7 +88,7 @@ h1, h2, h3 {
 :focus-visible {
   outline: 2px solid var(--brand);
   outline-offset: 2px;
-  border-radius: 4px;
+  border-radius: 6px;
 }
 
 /* ─────────────────────────────────────────────────────
@@ -79,17 +96,21 @@ h1, h2, h3 {
 ───────────────────────────────────────────────────── */
 .field {
   width: 100%;
-  padding: 0.5rem 0.75rem;
+  padding: 0.5625rem 0.875rem;
   background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 8px;
+  border: 1.5px solid var(--border);
+  border-radius: 10px;
   font-family: inherit;
   font-size: 0.9375rem;
   color: var(--text-hi);
-  transition: border-color .15s;
+  transition: border-color .2s, box-shadow .2s;
 }
-.field:hover  { border-color: var(--border-hv); }
-.field:focus  { outline: none; border-color: var(--brand); box-shadow: 0 0 0 3px rgba(181,69,27,.12); }
+.field:hover  { border-color: var(--brand); }
+.field:focus  {
+  outline: none;
+  border-color: var(--brand);
+  box-shadow: 0 0 0 3px rgba(74,124,89,.15);
+}
 
 /* ─────────────────────────────────────────────────────
    BUTTONS
@@ -99,35 +120,50 @@ h1, h2, h3 {
   align-items: center;
   justify-content: center;
   gap: .375rem;
-  padding: .5rem 1.125rem;
-  border-radius: 8px;
+  padding: .5625rem 1.25rem;
+  border-radius: 10px;
   font-family: inherit;
   font-size: .9375rem;
   font-weight: 600;
   cursor: pointer;
-  transition: background .15s, opacity .15s;
+  transition: background .18s, box-shadow .18s, transform .1s;
   border: none;
   white-space: nowrap;
   line-height: 1;
 }
-.btn-primary        { background: var(--brand); color: #fff; }
-.btn-primary:hover  { background: var(--brand-hv); }
-.btn-secondary      { background: var(--surface); color: var(--text-md); border: 1px solid var(--border); }
-.btn-secondary:hover { background: var(--bg); }
+.btn:active { transform: scale(.97); }
+
+.btn-primary        { background: var(--brand); color: #fff; box-shadow: 0 2px 8px rgba(74,124,89,.3); }
+.btn-primary:hover  { background: var(--brand-hv); box-shadow: 0 4px 14px rgba(74,124,89,.35); }
+.btn-secondary      { background: var(--surface); color: var(--text-md); border: 1.5px solid var(--border); }
+.btn-secondary:hover { background: var(--bg); border-color: var(--brand); }
 .btn-ghost          { background: transparent; color: var(--text-md); }
-.btn-ghost:hover    { background: rgba(0,0,0,.05); }
-.btn:disabled       { opacity: .45; pointer-events: none; }
+.btn-ghost:hover    { background: rgba(74,124,89,.08); color: var(--brand); }
+.btn:disabled       { opacity: .4; pointer-events: none; }
 .btn-sm { padding: .375rem .875rem; font-size: .875rem; }
-.btn-lg { padding: .6875rem 1.375rem; font-size: 1rem; }
+.btn-lg { padding: .75rem 1.5rem; font-size: 1rem; }
 
 /* ─────────────────────────────────────────────────────
    CARDS
 ───────────────────────────────────────────────────── */
 .card {
   background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 14px;
+  border: 1.5px solid var(--border);
+  border-radius: 16px;
   padding: 1.25rem;
+  box-shadow: 0 1px 4px rgba(30,45,34,.05);
+  position: relative;
+  z-index: 1;
+}
+
+.card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 1.5rem; right: 1.5rem;
+  height: 2px;
+  background: linear-gradient(90deg, var(--brand), transparent);
+  border-radius: 99px;
+  opacity: 0.35;
 }
 
 /* ─────────────────────────────────────────────────────
@@ -139,7 +175,8 @@ h1, h2, h3 {
   font-weight: 700;
   color: var(--text-md);
   margin-bottom: .3rem;
-  letter-spacing: .025em;
+  letter-spacing: .04em;
+  text-transform: uppercase;
 }
 
 /* ─────────────────────────────────────────────────────
@@ -148,25 +185,26 @@ h1, h2, h3 {
 .badge {
   display: inline-flex;
   align-items: center;
-  padding: .15rem .5rem;
+  padding: .2rem .6rem;
   border-radius: 99px;
   font-size: .6875rem;
   font-weight: 700;
   letter-spacing: .02em;
 }
-.badge-green  { background: #DCFCE7; color: #166534; }
-.badge-orange { background: #FEF3C7; color: #92400E; }
-.badge-red    { background: #FEE2E2; color: #991B1B; }
-.badge-gray   { background: #F3F0EC; color: #6B6460; }
+.badge-green  { background: #D1FAE5; color: #1A5C3A; }
+.badge-orange { background: #FEF3C7; color: #7C5B0E; }
+.badge-red    { background: #FDECEA; color: #8B2020; }
+.badge-gray   { background: #EBE8E1; color: #5C5A50; }
 
 /* ─────────────────────────────────────────────────────
    SKELETON
 ───────────────────────────────────────────────────── */
-@keyframes shimmer { 0%,100%{opacity:.6} 50%{opacity:1} }
+@keyframes shimmer { 0%,100%{opacity:.5} 50%{opacity:.9} }
 .skeleton {
-  background: #EDE8E2;
-  border-radius: 8px;
-  animation: shimmer 1.4s ease-in-out infinite;
+  background: linear-gradient(90deg, #DDD9CF 0%, #E8E4DC 50%, #DDD9CF 100%);
+  background-size: 200% 100%;
+  border-radius: 10px;
+  animation: shimmer 1.6s ease-in-out infinite;
 }
 
 /* ─────────────────────────────────────────────────────
@@ -200,16 +238,24 @@ h1, h2, h3 {
 .tbl td {
   padding: .75rem 1rem;
   font-size: .9375rem;
-  border-top: 1px solid var(--border);
+  border-top: 1px dashed var(--border);
   color: var(--text-md);
 }
-.tbl tbody tr:hover td { background: #FAF7F4; }
+.tbl tbody tr:hover td { background: rgba(74,124,89,.04); }
 .tbl-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
 
 /* ─────────────────────────────────────────────────────
-   DIVIDER
+   DIVIDER — pontilhado organic
 ───────────────────────────────────────────────────── */
-.divider { height: 1px; background: var(--border); margin: 1rem 0; }
+.divider {
+  height: 1px;
+  background: repeating-linear-gradient(
+    90deg,
+    var(--border) 0px, var(--border) 6px,
+    transparent 6px, transparent 12px
+  );
+  margin: 1rem 0;
+}
 
 /* ─────────────────────────────────────────────────────
    SECTION TITLE
@@ -218,25 +264,25 @@ h1, h2, h3 {
   font-size: .6875rem;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: .08em;
+  letter-spacing: .1em;
   color: var(--text-lo);
 }
 
 /* ─────────────────────────────────────────────────────
-   SIDEBAR
+   SIDEBAR — verde escuro natural
 ───────────────────────────────────────────────────── */
 .sidebar-brand {
-  font-family: 'Bricolage Grotesque', sans-serif;
-  font-weight: 700;
-  font-size: 1rem;
-  color: #FFFFFF;
-  letter-spacing: -.01em;
+  font-family: 'DM Serif Display', Georgia, serif;
+  font-weight: 400;
+  font-size: 1.125rem;
+  color: #E8F0E4;
+  letter-spacing: .01em;
 }
 
 .sidebar-sub {
   font-size: .75rem;
   font-weight: 500;
-  color: #7A726D;
+  color: #6A8C6E;
   margin-top: .125rem;
 }
 
@@ -244,22 +290,23 @@ h1, h2, h3 {
   display: flex;
   align-items: center;
   padding: .5rem .75rem;
-  border-radius: 8px;
+  border-radius: 10px;
   font-size: .9375rem;
   font-weight: 500;
-  color: #B8B0AA;
+  color: #A8C4A2;
   transition: background .15s, color .15s;
   text-decoration: none;
   white-space: nowrap;
 }
 .sidebar-link:hover {
-  color: #FFFFFF;
+  color: #E8F0E4;
   background: rgba(255,255,255,.07);
 }
 .sidebar-link.active {
-  background: var(--brand);
-  color: #FFFFFF;
+  background: rgba(74,124,89,.55);
+  color: #E8F0E4;
   font-weight: 600;
+  box-shadow: inset 2px 0 0 #74C99A;
 }
 
 .sidebar-logout {
@@ -267,10 +314,10 @@ h1, h2, h3 {
   align-items: center;
   width: 100%;
   padding: .5rem .75rem;
-  border-radius: 8px;
+  border-radius: 10px;
   font-size: .9375rem;
   font-weight: 500;
-  color: #7A726D;
+  color: #6A8C6E;
   background: transparent;
   border: none;
   cursor: pointer;
@@ -278,6 +325,6 @@ h1, h2, h3 {
   transition: color .15s, background .15s;
 }
 .sidebar-logout:hover {
-  color: #FFFFFF;
+  color: #E8F0E4;
   background: rgba(255,255,255,.07);
 }
